@@ -39,12 +39,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BreakpointEventArgs.cs" />
+    <Compile Include="DebuggeeLibraryEventArgs.cs" />
     <Compile Include="DebuggerAction.cs" />
     <Compile Include="DebuggeeOutputStringEventArgs.cs" />
     <Compile Include="DebuggeeThreadEventArgs.cs" />
     <Compile Include="DebuggerProcessStartInfo.cs" />
     <Compile Include="DebuggerSessionEventArgs.cs" />
     <Compile Include="IBreakpoint.cs" />
+    <Compile Include="IDebuggeeLibrary.cs" />
     <Compile Include="IDebuggeeProcess.cs" />
     <Compile Include="IDebuggeeThread.cs" />
     <Compile Include="IDebuggerSession.cs" />

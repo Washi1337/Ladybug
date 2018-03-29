@@ -23,12 +23,19 @@ namespace Ladybug.Core
             get;
         }
 
+        ICollection<IDebuggeeLibrary> Libraries
+        {
+            get;
+        }
+
         int ExitCode
         {
             get;
         }
         
         IDebuggeeThread GetThreadById(int id);
+        
+        IDebuggeeLibrary GetLibraryByBase(IntPtr baseAddress);
 
         IEnumerable<IBreakpoint> GetAllBreakpoints();
         

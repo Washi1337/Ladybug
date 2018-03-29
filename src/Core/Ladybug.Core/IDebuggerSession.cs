@@ -7,6 +7,10 @@ namespace Ladybug.Core
     {
         event EventHandler<DebuggeeProcessEventArgs> ProcessStarted;
         event EventHandler<DebuggeeProcessEventArgs> ProcessTerminated;
+        event EventHandler<DebuggeeThreadEventArgs> ThreadStarted;
+        event EventHandler<DebuggeeThreadEventArgs> ThreadTerminated;
+        event EventHandler<DebuggeeLibraryEventArgs> LibraryLoaded;
+        event EventHandler<DebuggeeLibraryEventArgs> LibraryUnloaded;
         event EventHandler<BreakpointEventArgs> BreakpointHit;
         event EventHandler<DebuggeeOutputStringEventArgs> OutputStringSent;
         event EventHandler<DebuggeeThreadEventArgs> Paused;

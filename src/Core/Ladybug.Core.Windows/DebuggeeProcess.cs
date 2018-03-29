@@ -10,6 +10,7 @@ namespace Ladybug.Core.Windows
         public event EventHandler<DebuggeeThreadEventArgs> ThreadTerminated;
 
         private readonly IDictionary<int, IDebuggeeThread> _threads = new Dictionary<int, IDebuggeeThread>();
+        private readonly IDictionary<IntPtr, IDebuggeeLibrary> _libraries = new Dictionary<IntPtr, IDebuggeeLibrary>();
         private readonly IntPtr _processHandle;
 
         internal DebuggeeProcess(IDebuggerSession session, PROCESS_INFORMATION processInfo)
@@ -41,10 +42,27 @@ namespace Ladybug.Core.Windows
             get { return _threads.Values; }
         }
 
+        public ICollection<IDebuggeeLibrary> Libraries
+        {
+            get;
+        }
+
         public int ExitCode
         {
             get;
             internal set;
+        }
+
+        public DebuggeeThread GetThreadById(int id)
+        {
+            _threads.TryGetValue(id, out var thread);
+            return (DebuggeeThread) thread;
+        }
+
+        public DebuggeeLibrary GetLibraryByBase(IntPtr baseAddress)
+        {
+            _libraries.TryGetValue(baseAddress, out var library);
+            return (DebuggeeLibrary) library;
         }
 
         public IEnumerable<IBreakpoint> GetAllBreakpoints()
@@ -88,6 +106,16 @@ namespace Ladybug.Core.Windows
         {
             _threads.Remove(thread.Id);
         }
+
+        internal void AddLibrary(DebuggeeLibrary library)
+        {
+            _libraries.Add(library.BaseOfLibrary, library);
+        }
+
+        internal void RemoveLibrary(DebuggeeLibrary library)
+        {
+            _libraries.Remove(library.BaseOfLibrary);
+        }
         
         public void Dispose()
         {
@@ -104,15 +132,14 @@ namespace Ladybug.Core.Windows
             ThreadTerminated?.Invoke(this, e);
         }
 
-        public DebuggeeThread GetThreadById(int id)
-        {
-            _threads.TryGetValue(id, out var thread);
-            return (DebuggeeThread) thread;
-        }
-
         IDebuggeeThread IDebuggeeProcess.GetThreadById(int id)
         {
             return GetThreadById(id);
+        }
+
+        IDebuggeeLibrary IDebuggeeProcess.GetLibraryByBase(IntPtr baseAddress)
+        {
+            return GetLibraryByBase(baseAddress);
         }
     }
 }

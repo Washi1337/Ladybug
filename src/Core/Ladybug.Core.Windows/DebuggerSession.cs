@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -15,13 +16,15 @@ namespace Ladybug.Core.Windows
         public event EventHandler<DebuggeeProcessEventArgs> ProcessTerminated;
         public event EventHandler<DebuggeeThreadEventArgs> ThreadStarted;
         public event EventHandler<DebuggeeThreadEventArgs> ThreadTerminated;
+        public event EventHandler<DebuggeeLibraryEventArgs> LibraryLoaded;
+        public event EventHandler<DebuggeeLibraryEventArgs> LibraryUnloaded;
         public event EventHandler<BreakpointEventArgs> BreakpointHit;
         public event EventHandler<DebuggeeOutputStringEventArgs> OutputStringSent;
         public event EventHandler<DebuggeeThreadEventArgs> Paused;
 
         private readonly IDictionary<int, IDebuggeeProcess> _processes = new Dictionary<int, IDebuggeeProcess>();
         private ContinueStatus _nextContinueStatus;
-        private ManualResetEvent _continueEvent;
+        private readonly AutoResetEvent _continueEvent = new AutoResetEvent(false);
         
         public DebuggerSession()
         {
@@ -155,12 +158,14 @@ namespace Ladybug.Core.Windows
                         break;
                     
                     case DebugEventCode.LOAD_DLL_DEBUG_EVENT:
+                        nextAction = HandleLoadDllDebugEvent(nextEvent);
                         break;
                     
                     case DebugEventCode.RIP_EVENT:
                         break;
                     
                     case DebugEventCode.UNLOAD_DLL_DEBUG_EVENT:
+                        nextAction = HandleUnloadDllDebugEvent(nextEvent);
                         break;
                     
                     default:
@@ -267,10 +272,65 @@ namespace Ladybug.Core.Windows
             var process = GetProcessById((int) debugEvent.dwProcessId);
             var thread = process.GetThreadById((int) debugEvent.dwThreadId);
             
-            var eventArgs = new DebuggeeOutputStringEventArgs(thread, info.GetOutputString(process));
+            var eventArgs = new DebuggeeOutputStringEventArgs(thread, process.ReadString(info.lpDebugStringData, info.nDebugStringLength, info.fUnicode == 0));
             OnOutputStringSent(eventArgs);
             
             return eventArgs.NextAction;
+        }
+
+        private DebuggerAction HandleLoadDllDebugEvent(DEBUG_EVENT debugEvent)
+        {
+            var info = debugEvent.InterpretDebugInfoAs<LOAD_DLL_DEBUG_INFO>();
+            var process = GetProcessById((int) debugEvent.dwProcessId);
+            var thread = process.GetThreadById((int) debugEvent.dwThreadId);
+
+            string name = null;
+            try
+            {
+                if (info.lpImageName != IntPtr.Zero)
+                {
+                    var buffer = new byte[8];
+                    process.ReadMemory(info.lpImageName, buffer, 0, IntPtr.Size);
+                    var ptr = new IntPtr(BitConverter.ToInt64(buffer, 0));
+
+                    if (ptr != IntPtr.Zero)
+                    {
+                        name = process.ReadString(ptr, 255, info.fUnicode == 0);
+                        name = name.Remove(name.IndexOf('\0'));
+                    }
+                }
+            }
+            catch (Win32Exception e)
+            {
+            }
+
+            var library = new DebuggeeLibrary(process, name, info.lpBaseOfDll);
+            process.AddLibrary(library);
+            
+            var eventArgs = new DebuggeeLibraryEventArgs(thread, library);
+            OnLibraryLoaded(eventArgs);
+            
+            return eventArgs.NextAction;
+        }
+
+        private DebuggerAction HandleUnloadDllDebugEvent(DEBUG_EVENT debugEvent)
+        {
+            var info = debugEvent.InterpretDebugInfoAs<UNLOAD_DLL_DEBUG_INFO>();
+            var process = GetProcessById((int) debugEvent.dwProcessId);
+            var thread = process.GetThreadById((int) debugEvent.dwThreadId);
+            var library = process.GetLibraryByBase(info.lpBaseOfDll);
+
+            if (library != null)
+            {
+                process.RemoveLibrary(library);
+
+                var eventArgs = new DebuggeeLibraryEventArgs(thread, library);
+                OnLibraryUnloaded(eventArgs);
+                
+                return eventArgs.NextAction;
+            }
+
+            return DebuggerAction.Continue;
         }
 
         private void ReleaseUnmanagedResources()
@@ -314,6 +374,16 @@ namespace Ladybug.Core.Windows
         protected virtual void OnOutputStringSent(DebuggeeOutputStringEventArgs e)
         {
             OutputStringSent?.Invoke(this, e);
+        }
+
+        protected virtual void OnLibraryLoaded(DebuggeeLibraryEventArgs e)
+        {
+            LibraryLoaded?.Invoke(this, e);
+        }
+
+        protected virtual void OnLibraryUnloaded(DebuggeeLibraryEventArgs e)
+        {
+            LibraryUnloaded?.Invoke(this, e);
         }
     }
 }

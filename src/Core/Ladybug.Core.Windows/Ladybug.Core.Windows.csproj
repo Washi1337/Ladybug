@@ -38,6 +38,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DebuggeeLibrary.cs" />
     <Compile Include="DebuggeeProcess.cs" />
     <Compile Include="DebuggeeThread.cs" />
     <Compile Include="DebuggerSession.cs" />
@@ -48,13 +49,16 @@
     <Compile Include="Kernel32\Debug\Events\DEBUG_EVENT.cs" />
     <Compile Include="Kernel32\Debug\Events\EXIT_PROCESS_DEBUG_INFO.cs" />
     <Compile Include="Kernel32\Debug\Events\EXIT_THREAD_DEBUG_INFO.cs" />
+    <Compile Include="Kernel32\Debug\Events\LOAD_DLL_DEBUG_INFO.cs" />
     <Compile Include="Kernel32\Debug\Events\OUTPUT_DEBUG_STRING_INFO.cs" />
+    <Compile Include="Kernel32\Debug\Events\UNLOAD_DLL_DEBUG_INFO.cs" />
     <Compile Include="Kernel32\NativeMethods.cs" />
     <Compile Include="Kernel32\ProcessCreationFlags.cs" />
     <Compile Include="Kernel32\PROCESS_INFORMATION.cs" />
     <Compile Include="Kernel32\SECURITY_ATTRIBUTES.cs" />
     <Compile Include="Kernel32\STARTUPINFO.cs" />
     <Compile Include="Kernel32\ThreadAccess.cs" />
+    <Compile Include="Kernel32\Utilities.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

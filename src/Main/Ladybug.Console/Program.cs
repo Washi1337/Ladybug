@@ -21,6 +21,8 @@ namespace Ladybug.Console
             session.ThreadStarted += SessionOnThreadStarted;
             session.ThreadTerminated += SessionOnThreadTerminated;
             session.OutputStringSent += SessionOnOutputStringSent;
+            session.LibraryLoaded += SessionOnLibraryLoaded;
+            session.LibraryUnloaded += SessionOnLibraryUnloaded;
             session.Paused += SessionOnPaused;
             
             session.StartProcess(new DebuggerProcessStartInfo
@@ -62,6 +64,17 @@ namespace Ladybug.Console
         private static void SessionOnThreadTerminated(object sender, DebuggeeThreadEventArgs args)
         {
             System.Console.WriteLine("Thread terminated. ID: " + args.Thread.Id);
+        }
+
+        private static void SessionOnLibraryLoaded(object sender, DebuggeeLibraryEventArgs args)
+        {
+            System.Console.WriteLine("Loaded library " + (args.Library.Name ?? "<no name>") + " at "
+                                     + args.Library.BaseOfLibrary);
+        }
+
+        private static void SessionOnLibraryUnloaded(object sender, DebuggeeLibraryEventArgs args)
+        {
+            System.Console.WriteLine("Unloaded library " + (args.Library.Name ?? "<no name>") + " at "+ args.Library.BaseOfLibrary);
         }
     }
 }
