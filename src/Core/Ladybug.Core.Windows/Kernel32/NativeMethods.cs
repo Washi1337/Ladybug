@@ -1,8 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
-using Ladybug.Core.Windows.Kernel32.Debug;
-using Ladybug.Core.Windows.Kernel32.Debug.Events;
+using Ladybug.Core.Windows.Kernel32.Debugging;
 
 namespace Ladybug.Core.Windows.Kernel32
 {

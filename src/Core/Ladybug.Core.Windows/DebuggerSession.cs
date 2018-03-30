@@ -5,8 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Ladybug.Core.Windows.Kernel32;
-using Ladybug.Core.Windows.Kernel32.Debug;
-using Ladybug.Core.Windows.Kernel32.Debug.Events;
+using Ladybug.Core.Windows.Kernel32.Debugging;
 
 namespace Ladybug.Core.Windows
 {
