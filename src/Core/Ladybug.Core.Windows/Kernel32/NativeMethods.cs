@@ -41,11 +41,7 @@ namespace Ladybug.Core.Windows.Kernel32
             return processInfo;
         }
         
-        [DllImport("kernel32.dll", SetLastError = true)]
-        static extern IntPtr OpenThread(ThreadAccess dwDesiredAccess, bool bInheritHandle,
-            uint dwThreadId);
-        
-        [DllImport( "kernel32.dll", EntryPoint = "WaitForDebugEvent" )]
+        [DllImport("kernel32.dll", EntryPoint = "WaitForDebugEvent")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool __WaitForDebugEvent(ref DEBUG_EVENT lpDebugEvent, uint dwMilliseconds);
 
@@ -67,8 +63,18 @@ namespace Ladybug.Core.Windows.Kernel32
                 throw new Win32Exception();
         }
         
+        [DllImport("kernel32.dll", EntryPoint = "DebugBreakProcess")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool __DebugBreakProcess(IntPtr hProcess);
+
+        public static void DebugBreakProcess(IntPtr hProcess)
+        {
+            if (!__DebugBreakProcess(hProcess))
+                throw new Win32Exception();
+        }
+        
         [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "ReadProcessMemory")]
-        static extern bool __ReadProcessMemory( 
+        private static extern bool __ReadProcessMemory( 
             IntPtr hProcess, 
             IntPtr lpBaseAddress,
             [Out] byte[] lpBuffer, 
@@ -83,6 +89,48 @@ namespace Ladybug.Core.Windows.Kernel32
             out IntPtr lpNumberOfBytesRead)
         {
             if (!__ReadProcessMemory(hProcess, lpBaseAddress, lpBuffer, dwSize, out lpNumberOfBytesRead))
+                throw new Win32Exception();
+        }
+        
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "GetThreadContext")]
+        private static extern bool __GetThreadContext(IntPtr hThread, ref CONTEXT lpContext);
+
+        public static CONTEXT GetThreadContext32(IntPtr hThread)
+        {
+            var ctx = new CONTEXT();
+            ctx.ContextFlags = CONTEXT_FLAGS.CONTEXT_ALL;
+            if (!__GetThreadContext(hThread, ref ctx))
+                throw new Win32Exception();
+            return ctx;
+        }
+        
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "SetThreadContext")]
+        private static extern bool __SetThreadContext(IntPtr hThread, [In] ref CONTEXT lpContext);
+
+        public static void SetThreadContext32(IntPtr hThread, CONTEXT context)
+        {
+            if (!__SetThreadContext(hThread, ref context))
+                throw new Win32Exception();
+        }
+        
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "GetThreadContext")]
+        private static extern bool __GetThreadContext(IntPtr hThread, ref CONTEXT64 lpContext);
+                
+        public static CONTEXT64 GetThreadContext64(IntPtr hThread)
+        {
+            var ctx = new CONTEXT64();
+            ctx.ContextFlags = CONTEXT_FLAGS.CONTEXT_ALL;
+            if (!__GetThreadContext(hThread, ref ctx))
+                throw new Win32Exception();
+            return ctx;
+        }
+        
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "SetThreadContext")]
+        private static extern bool __SetThreadContext(IntPtr hThread, [In] ref CONTEXT64 lpContext);
+
+        public static void SetThreadContext64(IntPtr hThread, CONTEXT64 context)
+        {
+            if (!__SetThreadContext(hThread, ref context))
                 throw new Win32Exception();
         }
     }

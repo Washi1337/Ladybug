@@ -75,7 +75,7 @@ namespace Ladybug.Core.Windows
             }
         }
 
-        public IDebuggeeProcess StartProcess(DebuggerProcessStartInfo info)
+        public DebuggeeProcess StartProcess(DebuggerProcessStartInfo info)
         {
             IsActive = true;
             var started = new ManualResetEvent(false);
@@ -103,9 +103,19 @@ namespace Ladybug.Core.Windows
             return process;
         }
 
-        public IDebuggeeProcess AttachToProcess(int processId)
+        IDebuggeeProcess IDebuggerSession.StartProcess(DebuggerProcessStartInfo info)
+        {
+            return StartProcess(info);
+        }
+        
+        public DebuggeeProcess AttachToProcess(int processId)
         {
             throw new System.NotImplementedException();
+        }
+
+        IDebuggeeProcess IDebuggerSession.AttachToProcess(int processId)
+        {
+            return AttachToProcess(processId);
         }
 
         public void Continue(DebuggerAction nextAction)
@@ -130,43 +140,35 @@ namespace Ladybug.Core.Windows
             {
                 var nextEvent = NativeMethods.WaitForDebugEvent(uint.MaxValue);
                 var nextAction = DebuggerAction.Continue;
-                
+
                 switch (nextEvent.dwDebugEventCode)
                 {
                     case DebugEventCode.CREATE_PROCESS_DEBUG_EVENT:
                         nextAction = HandleCreateProcessDebugEvent(nextEvent);
                         break;
-                    
                     case DebugEventCode.EXIT_PROCESS_DEBUG_EVENT:
                         nextAction = HandleExitProcessDebugEvent(nextEvent);
                         break;
-                    
                     case DebugEventCode.OUTPUT_DEBUG_STRING_EVENT:
                         nextAction = HandleOutputStringDebugEvent(nextEvent);
                         break;
-                    
                     case DebugEventCode.CREATE_THREAD_DEBUG_EVENT:
                         nextAction = HandleCreateThreadDebugEvent(nextEvent);
                         break;
-                    
                     case DebugEventCode.EXCEPTION_DEBUG_EVENT:
+                        nextAction = HandleExceptionDebugEvent(nextEvent);
                         break;
-                    
                     case DebugEventCode.EXIT_THREAD_DEBUG_EVENT:
                         nextAction = HandleExitThreadDebugEvent(nextEvent);
                         break;
-                    
                     case DebugEventCode.LOAD_DLL_DEBUG_EVENT:
                         nextAction = HandleLoadDllDebugEvent(nextEvent);
                         break;
-                    
                     case DebugEventCode.RIP_EVENT:
                         break;
-                    
                     case DebugEventCode.UNLOAD_DLL_DEBUG_EVENT:
                         nextAction = HandleUnloadDllDebugEvent(nextEvent);
                         break;
-                    
                     default:
                         throw new ArgumentOutOfRangeException();
                 }
@@ -184,6 +186,7 @@ namespace Ladybug.Core.Windows
                         var thread = process.GetThreadById((int) nextEvent.dwThreadId)
                                      ?? new DebuggeeThread(process, IntPtr.Zero, (int) nextEvent.dwThreadId);
                         var eventArgs = new DebuggeeThreadEventArgs(thread);
+                        eventArgs.NextAction = DebuggerAction.Stop;
                         OnPaused(eventArgs);
                         switch (eventArgs.NextAction)
                         {
@@ -299,7 +302,7 @@ namespace Ladybug.Core.Windows
                     }
                 }
             }
-            catch (Win32Exception e)
+            catch (Win32Exception)
             {
             }
 
@@ -332,6 +335,22 @@ namespace Ladybug.Core.Windows
             return DebuggerAction.Continue;
         }
 
+        private DebuggerAction HandleExceptionDebugEvent(DEBUG_EVENT nextEvent)
+        {
+            var info = nextEvent.InterpretDebugInfoAs<EXCEPTION_DEBUG_INFO>();
+
+            switch (info.ExceptionRecord.ExceptionCode)
+            {
+                case ExceptionCode.EXCEPTION_BREAKPOINT:
+                    
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+            
+            return DebuggerAction.Stop;
+        }
+
         private void ReleaseUnmanagedResources()
         {
             foreach (var process in _processes.Values)
@@ -343,8 +362,7 @@ namespace Ladybug.Core.Windows
             ReleaseUnmanagedResources();
             GC.SuppressFinalize(this);
         }
-
-
+        
         protected virtual void OnProcessStarted(DebuggeeProcessEventArgs e)
         {
             ProcessStarted?.Invoke(this, e);

@@ -37,6 +37,8 @@ namespace Ladybug.Core
         
         IDebuggeeLibrary GetLibraryByBase(IntPtr baseAddress);
 
+        void Break();
+        
         IEnumerable<IBreakpoint> GetAllBreakpoints();
         
         IEnumerable<SoftwareBreakpoint> GetSoftwareBreakpoints();

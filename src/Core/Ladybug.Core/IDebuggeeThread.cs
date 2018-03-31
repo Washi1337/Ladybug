@@ -16,5 +16,10 @@
         {
             get;
         }
+
+        IThreadContext ThreadContext
+        {
+            get;
+        }
     }
 }

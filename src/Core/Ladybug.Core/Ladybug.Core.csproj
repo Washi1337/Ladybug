@@ -51,6 +51,8 @@
     <Compile Include="IDebuggeeThread.cs" />
     <Compile Include="IDebuggerSession.cs" />
     <Compile Include="DebuggeeProcessEventArgs.cs" />
+    <Compile Include="IRegister.cs" />
+    <Compile Include="IThreadContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SoftwareBreakpoint.cs" />
   </ItemGroup>

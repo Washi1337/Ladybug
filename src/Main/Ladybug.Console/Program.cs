@@ -9,13 +9,14 @@ namespace Ladybug.Console
     {
         public static void Main(string[] args)
         {
+            System.Console.SetOut(new MarkupConsoleWriter(System.Console.Out));
             if (args.Length == 0)
             {
                 System.Console.WriteLine("Usage: Ladybug.Console.exe <file> [arguments]");
                 return;
             }
             
-            var session = new DebuggerSession();
+            IDebuggerSession session = new DebuggerSession();
             session.ProcessStarted += SessionOnProcessStarted;
             session.ProcessTerminated += SessionOnProcessTerminated;
             session.ThreadStarted += SessionOnThreadStarted;
@@ -25,15 +26,35 @@ namespace Ladybug.Console
             session.LibraryUnloaded += SessionOnLibraryUnloaded;
             session.Paused += SessionOnPaused;
             
-            session.StartProcess(new DebuggerProcessStartInfo
+            var process = session.StartProcess(new DebuggerProcessStartInfo
             {
                 CommandLine = string.Join(" ", args) 
             });
-            
 
-            Process.GetCurrentProcess().WaitForExit();
+            bool exit = false;
+            while (!exit)
+            {
+                string commandLine = System.Console.ReadLine();
+                var commandArgs = commandLine.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
+                if (commandArgs.Length > 0)
+                {
+                    switch (commandArgs[0])
+                    {
+                        case "g":
+                        case "go":
+                            session.Continue(DebuggerAction.Continue);
+                            break;
+                        case "break":
+                            process.Break();
+                            break;
+                        case "exit":
+                            exit = true;
+                            break;
+                    }
+                }
+            }
         }
-
+        
         private static void SessionOnOutputStringSent(object sender, DebuggeeOutputStringEventArgs args)
         {
             System.Console.WriteLine(args.Message);
@@ -41,14 +62,18 @@ namespace Ladybug.Console
 
         private static void SessionOnPaused(object sender, DebuggeeThreadEventArgs args)
         {
-            System.Console.WriteLine("Press a key to continue...");
-            System.Console.ReadKey();
-            args.NextAction = DebuggerAction.Continue;
+            System.Console.WriteLine("Debuggee paused.");
+            foreach (var register in args.Thread.ThreadContext.GetTopLevelRegisters())
+            {
+                ulong value = Convert.ToUInt64(register.Value);
+                System.Console.WriteLine("{0}: 0x{1} ({2})", register.Name, value.ToString("X" + register.Size / 4), value);
+            }
         }
 
         private static void SessionOnProcessStarted(object sender, DebuggeeProcessEventArgs args)
         {
             System.Console.WriteLine("Process created. ID: " + args.Process.Id);
+            args.NextAction = DebuggerAction.Stop;
         }
 
         private static void SessionOnProcessTerminated(object sender, DebuggeeProcessEventArgs args)
@@ -69,12 +94,12 @@ namespace Ladybug.Console
         private static void SessionOnLibraryLoaded(object sender, DebuggeeLibraryEventArgs args)
         {
             System.Console.WriteLine("Loaded library " + (args.Library.Name ?? "<no name>") + " at "
-                                     + args.Library.BaseOfLibrary);
+                                     + args.Library.BaseOfLibrary.ToInt64().ToString("X8"));
         }
 
         private static void SessionOnLibraryUnloaded(object sender, DebuggeeLibraryEventArgs args)
         {
-            System.Console.WriteLine("Unloaded library " + (args.Library.Name ?? "<no name>") + " at "+ args.Library.BaseOfLibrary);
+            System.Console.WriteLine("Unloaded library " + (args.Library.Name ?? "<no name>") + " at "+ args.Library.BaseOfLibrary.ToInt64().ToString("X8"));
         }
     }
 }

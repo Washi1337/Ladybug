@@ -44,7 +44,7 @@ namespace Ladybug.Core.Windows
 
         public ICollection<IDebuggeeLibrary> Libraries
         {
-            get;
+            get { return _libraries.Values; }
         }
 
         public int ExitCode
@@ -63,6 +63,11 @@ namespace Ladybug.Core.Windows
         {
             _libraries.TryGetValue(baseAddress, out var library);
             return (DebuggeeLibrary) library;
+        }
+
+        public void Break()
+        {
+            NativeMethods.DebugBreakProcess(_processHandle);
         }
 
         public IEnumerable<IBreakpoint> GetAllBreakpoints()
@@ -100,11 +105,13 @@ namespace Ladybug.Core.Windows
         internal void AddThread(DebuggeeThread thread)
         {
             _threads.Add(thread.Id, thread);
+            OnThreadStarted(new DebuggeeThreadEventArgs(thread));
         }
 
         internal void RemoveThread(DebuggeeThread thread)
         {
             _threads.Remove(thread.Id);
+            OnThreadTerminated(new DebuggeeThreadEventArgs(thread));
         }
 
         internal void AddLibrary(DebuggeeLibrary library)
@@ -119,15 +126,14 @@ namespace Ladybug.Core.Windows
         
         public void Dispose()
         {
-            throw new NotImplementedException();
         }
 
-        internal virtual void OnThreadStarted(DebuggeeThreadEventArgs e)
+        protected virtual void OnThreadStarted(DebuggeeThreadEventArgs e)
         {
             ThreadStarted?.Invoke(this, e);
         }
 
-        internal virtual void OnThreadTerminated(DebuggeeThreadEventArgs e)
+        protected virtual void OnThreadTerminated(DebuggeeThreadEventArgs e)
         {
             ThreadTerminated?.Invoke(this, e);
         }

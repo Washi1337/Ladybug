@@ -1,10 +1,12 @@
 ﻿using System;
+using Ladybug.Core.Windows.Kernel32;
 
 namespace Ladybug.Core.Windows
 {
     public class DebuggeeThread : IDebuggeeThread
     {
         private readonly IntPtr _threadHandle;
+        private IThreadContext _context;
 
         internal DebuggeeThread(IDebuggeeProcess process, IntPtr threadHandle, int id)
         {
@@ -27,6 +29,11 @@ namespace Ladybug.Core.Windows
         {
             get;
             internal set;
+        }
+
+        public IThreadContext ThreadContext
+        {
+            get { return _context ?? (_context = new X86ThreadContext32(_threadHandle)); }
         }
     }
 }

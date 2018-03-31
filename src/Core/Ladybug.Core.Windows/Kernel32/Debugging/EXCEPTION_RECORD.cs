@@ -6,7 +6,7 @@ namespace Ladybug.Core.Windows.Kernel32.Debugging
     [StructLayout(LayoutKind.Sequential)]
     internal struct EXCEPTION_RECORD
     {
-        public uint ExceptionCode;
+        public ExceptionCode ExceptionCode;
         public uint ExceptionFlags;
         public IntPtr ExceptionRecord;
         public IntPtr ExceptionAddress;
