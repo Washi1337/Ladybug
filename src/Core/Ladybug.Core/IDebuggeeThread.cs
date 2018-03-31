@@ -1,4 +1,6 @@
-﻿namespace Ladybug.Core
+﻿using System;
+
+namespace Ladybug.Core
 {
     public interface IDebuggeeThread
     {
@@ -17,9 +19,11 @@
             get;
         }
 
-        IThreadContext ThreadContext
+        IntPtr StartAddress
         {
             get;
         }
+
+        IThreadContext GetThreadContext();
     }
 }

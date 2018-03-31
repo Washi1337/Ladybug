@@ -19,6 +19,7 @@ namespace Ladybug.Core.Windows
         public event EventHandler<DebuggeeLibraryEventArgs> LibraryUnloaded;
         public event EventHandler<BreakpointEventArgs> BreakpointHit;
         public event EventHandler<DebuggeeOutputStringEventArgs> OutputStringSent;
+        public event EventHandler<DebuggeeExceptionEventArgs> ExceptionOccurred;
         public event EventHandler<DebuggeeThreadEventArgs> Paused;
 
         private readonly IDictionary<int, IDebuggeeProcess> _processes = new Dictionary<int, IDebuggeeProcess>();
@@ -184,7 +185,7 @@ namespace Ladybug.Core.Windows
                     case DebuggerAction.Stop:
                         var process = GetProcessById((int) nextEvent.dwProcessId);
                         var thread = process.GetThreadById((int) nextEvent.dwThreadId)
-                                     ?? new DebuggeeThread(process, IntPtr.Zero, (int) nextEvent.dwThreadId);
+                                     ?? new DebuggeeThread(process, IntPtr.Zero, (int) nextEvent.dwThreadId, IntPtr.Zero);
                         var eventArgs = new DebuggeeThreadEventArgs(thread);
                         eventArgs.NextAction = DebuggerAction.Stop;
                         OnPaused(eventArgs);
@@ -216,8 +217,9 @@ namespace Ladybug.Core.Windows
         {
             var info = debugEvent.InterpretDebugInfoAs<CREATE_PROCESS_DEBUG_INFO>();
             var process = GetOrCreateProcess(info.hProcess, (int) debugEvent.dwProcessId);
+            process.BaseAddress = info.lpBaseOfImage;
             
-            var thread = new DebuggeeThread(process, info.hThread, (int) debugEvent.dwThreadId);
+            var thread = new DebuggeeThread(process, info.hThread, (int) debugEvent.dwThreadId, info.lpStartAddress);
             process.AddThread(thread);
             
             var eventArgs = new DebuggeeProcessEventArgs(process);
@@ -244,7 +246,7 @@ namespace Ladybug.Core.Windows
             var info = debugEvent.InterpretDebugInfoAs<CREATE_THREAD_DEBUG_INFO>();
             var process = GetProcessById((int) debugEvent.dwProcessId);
             
-            var thread = new DebuggeeThread(process, info.hThread, (int) debugEvent.dwThreadId);
+            var thread = new DebuggeeThread(process, info.hThread, (int) debugEvent.dwThreadId, info.lpStartAddress);
             process.AddThread(thread);
             
             var eventArgs = new DebuggeeThreadEventArgs(thread);
@@ -335,17 +337,33 @@ namespace Ladybug.Core.Windows
             return DebuggerAction.Continue;
         }
 
-        private DebuggerAction HandleExceptionDebugEvent(DEBUG_EVENT nextEvent)
+        private DebuggerAction HandleExceptionDebugEvent(DEBUG_EVENT debugEvent)
         {
-            var info = nextEvent.InterpretDebugInfoAs<EXCEPTION_DEBUG_INFO>();
-
+            var info = debugEvent.InterpretDebugInfoAs<EXCEPTION_DEBUG_INFO>();
+            var process = GetProcessById((int) debugEvent.dwProcessId);
+            var thread = process.GetThreadById((int) debugEvent.dwThreadId);
+            
             switch (info.ExceptionRecord.ExceptionCode)
             {
-                case ExceptionCode.EXCEPTION_BREAKPOINT:
-                    
-                    break;
+//                case ExceptionCode.EXCEPTION_BREAKPOINT:
+//                    var eip = thread.ThreadContext.GetRegisterByName("eip");
+//                    var buffer = new byte[1];
+//                    process.ReadMemory((IntPtr) ((uint) eip.Value - 1), buffer, 0, buffer.Length);
+//
+//                    if (buffer[0] == 0xCC)
+//                    {
+//                        eip.Value = ((uint) eip.Value) - 1;
+//                        thread.ThreadContext.Flush();
+//                    }
+//
+//                    break;
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    OnExceptionOccurred(new DebuggeeExceptionEventArgs(thread,
+                        new DebuggeeException((uint) info.ExceptionRecord.ExceptionCode,
+                            info.ExceptionRecord.ExceptionCode.ToString(), 
+                            info.dwFirstChance == 1,
+                            info.ExceptionRecord.ExceptionFlags == 0)));
+                    break;
             }
             
             return DebuggerAction.Stop;
@@ -383,11 +401,6 @@ namespace Ladybug.Core.Windows
             ThreadTerminated?.Invoke(this, e);
         }
 
-        protected virtual void OnPaused(DebuggeeThreadEventArgs e)
-        {
-            Paused?.Invoke(this, e);
-        }
-
         protected virtual void OnOutputStringSent(DebuggeeOutputStringEventArgs e)
         {
             OutputStringSent?.Invoke(this, e);
@@ -401,6 +414,16 @@ namespace Ladybug.Core.Windows
         protected virtual void OnLibraryUnloaded(DebuggeeLibraryEventArgs e)
         {
             LibraryUnloaded?.Invoke(this, e);
+        }
+
+        protected virtual void OnExceptionOccurred(DebuggeeExceptionEventArgs e)
+        {
+            ExceptionOccurred?.Invoke(this, e);
+        }
+
+        protected virtual void OnPaused(DebuggeeThreadEventArgs e)
+        {
+            Paused?.Invoke(this, e);
         }
     }
 }

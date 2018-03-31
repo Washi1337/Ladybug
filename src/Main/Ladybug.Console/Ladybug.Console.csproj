@@ -39,6 +39,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="MarkupConsoleWriter.cs" />
+    <Compile Include="ProcessMemoryReader.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -50,6 +51,10 @@
     <ProjectReference Include="..\..\Core\Ladybug.Core\Ladybug.Core.csproj">
       <Project>{c4e64af5-b795-4224-8228-af043bd73b42}</Project>
       <Name>Ladybug.Core</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Dependencies\AsmResolver\AsmResolver\AsmResolver.csproj">
+      <Project>{228b5994-1035-4eb0-a095-8d85b6ee1146}</Project>
+      <Name>AsmResolver</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

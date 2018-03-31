@@ -92,6 +92,34 @@ namespace Ladybug.Core.Windows.Kernel32
                 throw new Win32Exception();
         }
         
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "WriteProcessMemory")]
+        private static extern bool __WriteProcessMemory( 
+            IntPtr hProcess, 
+            IntPtr lpBaseAddress,
+            [Out] byte[] lpBuffer, 
+            int dwSize, 
+            out IntPtr lpNumberOfBytesWritten);
+
+        public static void WriteProcessMemory(
+            IntPtr hProcess,
+            IntPtr lpBaseAddress,
+            [Out] byte[] lpBuffer,
+            int dwSize,
+            out IntPtr lpNumberOfBytesWritten)
+        {
+            if (!__WriteProcessMemory(hProcess, lpBaseAddress, lpBuffer, dwSize, out lpNumberOfBytesWritten))
+                throw new Win32Exception();
+        }
+        
+        [DllImport("kernel32.dll", EntryPoint = "FlushInstructionCache")]
+        private static extern bool __FlushInstructionCache(IntPtr hProcess, IntPtr lpBaseAddress, IntPtr dwSize);
+
+        public static void FlushInstructionCache(IntPtr hProcess, IntPtr lpBaseAddress, IntPtr dwSize)
+        {
+            if (!__FlushInstructionCache(hProcess, lpBaseAddress, dwSize))
+                throw new Win32Exception();
+        }
+        
         [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "GetThreadContext")]
         private static extern bool __GetThreadContext(IntPtr hThread, ref CONTEXT lpContext);
 

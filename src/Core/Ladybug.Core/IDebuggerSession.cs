@@ -13,6 +13,7 @@ namespace Ladybug.Core
         event EventHandler<DebuggeeLibraryEventArgs> LibraryUnloaded;
         event EventHandler<BreakpointEventArgs> BreakpointHit;
         event EventHandler<DebuggeeOutputStringEventArgs> OutputStringSent;
+        event EventHandler<DebuggeeExceptionEventArgs> ExceptionOccurred;
         event EventHandler<DebuggeeThreadEventArgs> Paused;
         
         bool IsActive

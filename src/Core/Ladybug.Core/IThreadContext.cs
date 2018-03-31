@@ -9,7 +9,7 @@ namespace Ladybug.Core
         IEnumerable<IRegister> GetAllRegisters();
         
         IRegister GetRegisterByName(string name);
-
+        
         void Flush();
     }
 }

@@ -53,6 +53,12 @@ namespace Ladybug.Core.Windows
             internal set;
         }
 
+        public IntPtr BaseAddress
+        {
+            get;
+            internal set;
+        }
+
         public DebuggeeThread GetThreadById(int id)
         {
             _threads.TryGetValue(id, out var thread);
@@ -99,7 +105,10 @@ namespace Ladybug.Core.Windows
 
         public void WriteMemory(IntPtr address, byte[] buffer, int offset, int length)
         {
-            throw new NotImplementedException();
+            byte[] b = new byte[length];
+            Buffer.BlockCopy(buffer, offset, b, 0, length);
+            NativeMethods.WriteProcessMemory(_processHandle, address, b, b.Length, out var written);
+            NativeMethods.FlushInstructionCache(_processHandle, address, written);
         }
 
         internal void AddThread(DebuggeeThread thread)

@@ -39,6 +39,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BreakpointEventArgs.cs" />
+    <Compile Include="DebuggeeException.cs" />
+    <Compile Include="DebuggeeExceptionEventArgs.cs" />
     <Compile Include="DebuggeeLibraryEventArgs.cs" />
     <Compile Include="DebuggerAction.cs" />
     <Compile Include="DebuggeeOutputStringEventArgs.cs" />

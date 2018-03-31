@@ -6,13 +6,13 @@ namespace Ladybug.Core.Windows
     public class DebuggeeThread : IDebuggeeThread
     {
         private readonly IntPtr _threadHandle;
-        private IThreadContext _context;
 
-        internal DebuggeeThread(IDebuggeeProcess process, IntPtr threadHandle, int id)
+        internal DebuggeeThread(IDebuggeeProcess process, IntPtr threadHandle, int id, IntPtr startAddress)
         {
             Process = process ?? throw new ArgumentNullException(nameof(process));
             _threadHandle = threadHandle;
             Id = id;
+            StartAddress = startAddress;
         }
         
         public IDebuggeeProcess Process
@@ -31,9 +31,15 @@ namespace Ladybug.Core.Windows
             internal set;
         }
 
-        public IThreadContext ThreadContext
+        public IntPtr StartAddress
         {
-            get { return _context ?? (_context = new X86ThreadContext32(_threadHandle)); }
+            get;
+            private set;
+        }
+
+        public IThreadContext GetThreadContext()
+        {
+            return new X86ThreadContext32(_threadHandle);
         }
     }
 }

@@ -24,7 +24,6 @@ namespace Ladybug.Core.Windows
             _registers["ebp"] = new Register<uint>("ebp", _context.Ebp);
             _registers["esi"] = new Register<uint>("esi", _context.Esi);
             _registers["edi"] = new Register<uint>("edi", _context.Edi);
-            
             _registers["eip"] = new Register<uint>("eip", _context.Eip);
         }
 

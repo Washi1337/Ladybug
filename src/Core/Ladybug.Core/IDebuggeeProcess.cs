@@ -32,6 +32,11 @@ namespace Ladybug.Core
         {
             get;
         }
+
+        IntPtr BaseAddress
+        {
+            get;
+        }
         
         IDebuggeeThread GetThreadById(int id);
         
