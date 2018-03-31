@@ -30,7 +30,7 @@ namespace Ladybug.Core
         IDebuggeeProcess StartProcess(DebuggerProcessStartInfo info);
 
         IDebuggeeProcess AttachToProcess(int processId);
-
+        
         void Continue(DebuggerAction nextAction);
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Ladybug.Core.Windows.Kernel32;
 
 namespace Ladybug.Core.Windows
@@ -11,6 +12,8 @@ namespace Ladybug.Core.Windows
 
         private readonly IDictionary<int, IDebuggeeThread> _threads = new Dictionary<int, IDebuggeeThread>();
         private readonly IDictionary<IntPtr, IDebuggeeLibrary> _libraries = new Dictionary<IntPtr, IDebuggeeLibrary>();
+        private readonly IDictionary<IntPtr, Int3Breakpoint> _breakpoints = new Dictionary<IntPtr, Int3Breakpoint>();
+        
         private readonly IntPtr _processHandle;
 
         internal DebuggeeProcess(IDebuggerSession session, PROCESS_INFORMATION processInfo)
@@ -76,30 +79,41 @@ namespace Ladybug.Core.Windows
             NativeMethods.DebugBreakProcess(_processHandle);
         }
 
-        public IEnumerable<IBreakpoint> GetAllBreakpoints()
+        public IEnumerable<IBreakpoint> GetSoftwareBreakpoints()
         {
-            throw new NotImplementedException();
+            return _breakpoints.Values;
         }
 
-        public IEnumerable<SoftwareBreakpoint> GetSoftwareBreakpoints()
+        public IBreakpoint SetSoftwareBreakpoint(IntPtr address)
         {
-            throw new NotImplementedException();
+            if (!_breakpoints.TryGetValue(address, out var breakpoint))
+            {
+                breakpoint = new Int3Breakpoint(this, address, true);
+                _breakpoints[address] = breakpoint;
+            }
+            return breakpoint;
         }
 
-        public SoftwareBreakpoint SetSoftwareBreakpoint(IntPtr address)
+        public void RemoveSoftwareBreakpoint(IBreakpoint breakpoint)
         {
-            throw new NotImplementedException();
-        }
-
-        public void RemoveSoftwareBreakpoint(SoftwareBreakpoint breakpoint)
-        {
-            throw new NotImplementedException();
+            if (_breakpoints.Remove(breakpoint.Address))
+                breakpoint.Enabled = false;
         }
 
         public void ReadMemory(IntPtr address, byte[] buffer, int offset, int length)
         {
             byte[] b = new byte[length];
             NativeMethods.ReadProcessMemory(_processHandle, address, b, b.Length, out var read);
+
+            var affectedBreakpoints = _breakpoints.Values.Where(x =>
+                (ulong) x.Address >= (ulong) address && (ulong) x.Address < (ulong) (address + length));
+            foreach (var breakpoint in affectedBreakpoints)
+            {
+                int start = (int) (breakpoint.Address - (int) address);
+                int end = Math.Min(start + breakpoint.OriginalBytes.Length, length);
+                Buffer.BlockCopy(breakpoint.OriginalBytes, 0, b, start, end - start);
+            }
+            
             Buffer.BlockCopy(b, 0, buffer, offset, length);
         }
 
@@ -155,6 +169,12 @@ namespace Ladybug.Core.Windows
         IDebuggeeLibrary IDebuggeeProcess.GetLibraryByBase(IntPtr baseAddress)
         {
             return GetLibraryByBase(baseAddress);
+        }
+
+        internal Int3Breakpoint GetBreakpointByAddress(IntPtr address)
+        {
+            _breakpoints.TryGetValue(address, out var breakpoint);
+            return breakpoint;
         }
     }
 }

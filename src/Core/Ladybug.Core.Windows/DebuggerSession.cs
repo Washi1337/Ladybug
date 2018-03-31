@@ -48,7 +48,7 @@ namespace Ladybug.Core.Windows
 
         public IEnumerable<IBreakpoint> GetAllBreakpoints()
         {
-            return _processes.Values.SelectMany(x => x.GetAllBreakpoints());
+            return _processes.Values.SelectMany(x => x.GetSoftwareBreakpoints());
         }
 
         public DebuggeeProcess GetProcessById(int id)
@@ -345,18 +345,17 @@ namespace Ladybug.Core.Windows
             
             switch (info.ExceptionRecord.ExceptionCode)
             {
-//                case ExceptionCode.EXCEPTION_BREAKPOINT:
-//                    var eip = thread.ThreadContext.GetRegisterByName("eip");
-//                    var buffer = new byte[1];
-//                    process.ReadMemory((IntPtr) ((uint) eip.Value - 1), buffer, 0, buffer.Length);
-//
-//                    if (buffer[0] == 0xCC)
-//                    {
-//                        eip.Value = ((uint) eip.Value) - 1;
-//                        thread.ThreadContext.Flush();
-//                    }
-//
-//                    break;
+                case ExceptionCode.EXCEPTION_BREAKPOINT:
+                    uint eip = (uint) thread.GetThreadContext().GetRegisterByName("eip").Value - 1;
+                    var breakpoint = process.GetBreakpointByAddress((IntPtr) eip);
+                    if (breakpoint != null)
+                    {
+                        var eventArgs = new BreakpointEventArgs(thread, breakpoint);
+                        breakpoint.HandleBreakpointEvent(eventArgs);
+                        OnBreakpointHit(eventArgs);
+                    }
+                    
+                    break;
                 default:
                     OnExceptionOccurred(new DebuggeeExceptionEventArgs(thread,
                         new DebuggeeException((uint) info.ExceptionRecord.ExceptionCode,
@@ -424,6 +423,11 @@ namespace Ladybug.Core.Windows
         protected virtual void OnPaused(DebuggeeThreadEventArgs e)
         {
             Paused?.Invoke(this, e);
+        }
+
+        protected virtual void OnBreakpointHit(BreakpointEventArgs e)
+        {
+            BreakpointHit?.Invoke(this, e);
         }
     }
 }

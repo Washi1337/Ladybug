@@ -38,6 +38,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="InstructionPrinter.cs" />
+    <Compile Include="Logger.cs" />
+    <Compile Include="LoggerMessageType.cs" />
     <Compile Include="MarkupConsoleWriter.cs" />
     <Compile Include="ProcessMemoryReader.cs" />
     <Compile Include="Program.cs" />

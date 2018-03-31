@@ -44,13 +44,11 @@ namespace Ladybug.Core
 
         void Break();
         
-        IEnumerable<IBreakpoint> GetAllBreakpoints();
-        
-        IEnumerable<SoftwareBreakpoint> GetSoftwareBreakpoints();
+        IEnumerable<IBreakpoint> GetSoftwareBreakpoints();
 
-        SoftwareBreakpoint SetSoftwareBreakpoint(IntPtr address);
+        IBreakpoint SetSoftwareBreakpoint(IntPtr address);
 
-        void RemoveSoftwareBreakpoint(SoftwareBreakpoint breakpoint);
+        void RemoveSoftwareBreakpoint(IBreakpoint breakpoint);
         
         void ReadMemory(IntPtr address, byte[] buffer, int offset, int length);
         

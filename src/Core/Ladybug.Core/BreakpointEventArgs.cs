@@ -1,9 +1,9 @@
 ﻿namespace Ladybug.Core
 {
-    public class BreakpointEventArgs : DebuggerSessionEventArgs
+    public class BreakpointEventArgs : DebuggeeThreadEventArgs
     {
-        public BreakpointEventArgs(IDebuggerSession session, IBreakpoint breakpoint)
-            : base(session)
+        public BreakpointEventArgs(IDebuggeeThread thread, IBreakpoint breakpoint) 
+            : base(thread)
         {
             Breakpoint = breakpoint;
         }

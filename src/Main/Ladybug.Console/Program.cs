@@ -14,13 +14,15 @@ namespace Ladybug.Console
         private static X86Disassembler _disassembler;
         private static IDebuggerSession _session;
         private static IDebuggeeThread _currentThread;
+        
+        private static Logger _logger = new Logger();
+        private static InstructionPrinter _printer = new InstructionPrinter();
 
         public static void Main(string[] args)
         {
-            System.Console.SetOut(new MarkupConsoleWriter(System.Console.Out));
             if (args.Length == 0)
             {
-                System.Console.WriteLine("Usage: Ladybug.Console.exe <file> [arguments]");
+                _logger.WriteLine("Usage: Ladybug.Console.exe <file> [arguments]");
                 return;
             }
             
@@ -33,6 +35,7 @@ namespace Ladybug.Console
             _session.LibraryLoaded += SessionOnLibraryLoaded;
             _session.LibraryUnloaded += SessionOnLibraryUnloaded;
             _session.ExceptionOccurred += SessionOnExceptionOccurred;
+            _session.BreakpointHit += SessionOnBreakpointHit;
             _session.Paused += SessionOnPaused;
             
             var process = _session.StartProcess(new DebuggerProcessStartInfo
@@ -56,6 +59,14 @@ namespace Ladybug.Console
                         case "go":
                             HandleGoCommand(commandArgs);
                             break;
+                        case "bp":
+                        case "breakpoint":
+                            HandleBreakpointCommand(commandArgs);
+                            break;
+                        case "bps":
+                        case "breakpoints":
+                            HandleBreakpointsCommand(commandArgs);
+                            break;
                         case "d":
                         case "disassemble":
                             HandleDisassembleCommand(commandArgs);
@@ -72,6 +83,29 @@ namespace Ladybug.Console
                             break;
                     }
                 }
+            }
+        }
+
+        private static void HandleBreakpointCommand(string[] commandArgs)
+        {
+            if (commandArgs.Length > 1)
+            {
+                if (ulong.TryParse(commandArgs[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture,
+                    out ulong address))
+                {
+                    _session.GetProcesses().First().SetSoftwareBreakpoint((IntPtr) address);
+                    return;
+                }
+            }
+            _logger.WriteLine("Usage: breakpoint <address>");
+        }
+
+        private static void HandleBreakpointsCommand(string[] commandArgs)
+        {
+            foreach (var breakpoint in _session.GetAllBreakpoints())
+            {
+                _logger.WriteLine("{0:X8} : {1}", breakpoint.Address.ToInt64(),
+                    breakpoint.Enabled ? "Enabled" : "Disabled");
             }
         }
 
@@ -98,7 +132,7 @@ namespace Ladybug.Console
             }
             
             for (int i = 0; i < 5; i++)
-                System.Console.WriteLine(_disassembler.ReadNextInstruction());
+                _printer.PrintInstruction(_disassembler.ReadNextInstruction());
         }
 
         private static void HandleRegistersCommand()
@@ -111,68 +145,74 @@ namespace Ladybug.Console
             foreach (var register in context.GetTopLevelRegisters())
             {
                 ulong value = Convert.ToUInt64(register.Value);
-                System.Console.WriteLine("{0}: 0x{1} ({2})", register.Name, value.ToString("X" + register.Size / 4), value);
+                _logger.WriteLine("{0}: 0x{1} ({2})", register.Name, value.ToString("X" + register.Size / 4), value);
             }
         }
 
         private static void SessionOnOutputStringSent(object sender, DebuggeeOutputStringEventArgs args)
         {
-            System.Console.WriteLine(args.Message);
+            _logger.WriteLine(LoggerMessageType.OutputString, "Debuggee sent debug message: " + args.Message);
         }
 
         private static void SessionOnPaused(object sender, DebuggeeThreadEventArgs args)
         {
-            System.Console.WriteLine("Debuggee paused.");
+            _logger.WriteLine("Debuggee paused.");
             _currentThread = args.Thread;
             var threadContext = _currentThread.GetThreadContext();
             
-            System.Console.WriteLine("Thread ID: " + args.Thread.Id);
+            _logger.WriteLine("Thread ID: " + args.Thread.Id);
             DumpRegisters(threadContext);
             _reader.Position = (uint) threadContext.GetRegisterByName("eip").Value;
-            System.Console.WriteLine(_disassembler.ReadNextInstruction());
+            _printer.PrintInstruction(_disassembler.ReadNextInstruction());
         }
 
         private static void SessionOnProcessStarted(object sender, DebuggeeProcessEventArgs args)
         {
             var thread = args.Process.Threads.First();
-            System.Console.WriteLine("Process {0} created with thread {1} at address {2:X}.", args.Process.Id, thread.Id, thread.StartAddress.ToInt64());
+            _logger.WriteLine("Process {0} created with thread {1} at address {2:X}.", args.Process.Id, thread.Id, thread.StartAddress.ToInt64());
             args.NextAction = DebuggerAction.Stop;
         }
 
         private static void SessionOnProcessTerminated(object sender, DebuggeeProcessEventArgs args)
         {
-            System.Console.WriteLine("Process terminated. ID: " + args.Process.Id);
+            _logger.WriteLine("Process terminated. ID: " + args.Process.Id);
         }
 
         private static void SessionOnThreadStarted(object sender, DebuggeeThreadEventArgs args)
         {
-            System.Console.WriteLine("Thread created. ID: " + args.Thread.Id);
+            _logger.WriteLine("Thread created. ID: " + args.Thread.Id);
         }
 
         private static void SessionOnThreadTerminated(object sender, DebuggeeThreadEventArgs args)
         {
-            System.Console.WriteLine("Thread terminated. ID: " + args.Thread.Id);
+            _logger.WriteLine("Thread terminated. ID: " + args.Thread.Id);
         }
 
         private static void SessionOnLibraryLoaded(object sender, DebuggeeLibraryEventArgs args)
         {
-            System.Console.WriteLine("Loaded library " + (args.Library.Name ?? "<no name>") + " at "
+            _logger.WriteLine("Loaded library " + (args.Library.Name ?? "<no name>") + " at "
                                      + args.Library.BaseOfLibrary.ToInt64().ToString("X8"));
         }
 
         private static void SessionOnLibraryUnloaded(object sender, DebuggeeLibraryEventArgs args)
         {
-            System.Console.WriteLine("Unloaded library " + (args.Library.Name ?? "<no name>") + " at "+ args.Library.BaseOfLibrary.ToInt64().ToString("X8"));
+            _logger.WriteLine("Unloaded library " + (args.Library.Name ?? "<no name>") + " at "+ args.Library.BaseOfLibrary.ToInt64().ToString("X8"));
         }
 
         private static void SessionOnExceptionOccurred(object sender, DebuggeeExceptionEventArgs args)
         {
-            System.Console.WriteLine("{0} exception occurred in thread {1} with error code {2:X}. {3}. Error is {4}.",
+            _logger.WriteLine(LoggerMessageType.Error, "{0} exception occurred in thread {1} with error code {2:X}. {3}. Error is {4}.",
                 args.Exception.IsFirstChance ? "First chance" : "Last chance",
                 args.Thread.Id, 
                 args.Exception.ErrorCode,
                 args.Exception.Message,
                 args.Exception.Continuable ? "continuable" : "uncontinuable");
+        }
+
+        private static void SessionOnBreakpointHit(object sender, BreakpointEventArgs breakpointEventArgs)
+        {
+            _logger.WriteLine(LoggerMessageType.Breakpoint, "Breakpoint at address {0:X8} hit.",
+                breakpointEventArgs.Breakpoint.Address.ToInt64());
         }
     }
 }

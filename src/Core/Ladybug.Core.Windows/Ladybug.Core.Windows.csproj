@@ -42,6 +42,7 @@
     <Compile Include="DebuggeeProcess.cs" />
     <Compile Include="DebuggeeThread.cs" />
     <Compile Include="DebuggerSession.cs" />
+    <Compile Include="Int3Breakpoint.cs" />
     <Compile Include="Kernel32\CONTEXT.cs" />
     <Compile Include="Kernel32\CONTEXT64.cs" />
     <Compile Include="Kernel32\CONTEXT_FLAGS.cs" />

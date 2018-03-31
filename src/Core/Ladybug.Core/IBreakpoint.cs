@@ -12,6 +12,9 @@ namespace Ladybug.Core
             set;
         }
         
-        
+        IntPtr Address
+        {
+            get;
+        }
     }
 }
