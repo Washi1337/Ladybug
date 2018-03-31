@@ -12,7 +12,7 @@ namespace Ladybug.Core.Windows
 
         private readonly IDictionary<int, IDebuggeeThread> _threads = new Dictionary<int, IDebuggeeThread>();
         private readonly IDictionary<IntPtr, IDebuggeeLibrary> _libraries = new Dictionary<IntPtr, IDebuggeeLibrary>();
-        private readonly IDictionary<IntPtr, Int3Breakpoint> _breakpoints = new Dictionary<IntPtr, Int3Breakpoint>();
+        private readonly IDictionary<IntPtr, Int3Breakpoint> _int3Breakpoints = new Dictionary<IntPtr, Int3Breakpoint>();
         
         private readonly IntPtr _processHandle;
 
@@ -81,47 +81,54 @@ namespace Ladybug.Core.Windows
 
         public IEnumerable<IBreakpoint> GetSoftwareBreakpoints()
         {
-            return _breakpoints.Values;
+            return _int3Breakpoints.Values;
         }
 
         public IBreakpoint SetSoftwareBreakpoint(IntPtr address)
         {
-            if (!_breakpoints.TryGetValue(address, out var breakpoint))
+            if (!_int3Breakpoints.TryGetValue(address, out var breakpoint))
             {
                 breakpoint = new Int3Breakpoint(this, address, true);
-                _breakpoints[address] = breakpoint;
+                _int3Breakpoints[address] = breakpoint;
             }
             return breakpoint;
         }
 
         public void RemoveSoftwareBreakpoint(IBreakpoint breakpoint)
         {
-            if (_breakpoints.Remove(breakpoint.Address))
+            if (_int3Breakpoints.Remove(breakpoint.Address))
                 breakpoint.Enabled = false;
         }
 
         public void ReadMemory(IntPtr address, byte[] buffer, int offset, int length)
         {
-            byte[] b = new byte[length];
-            NativeMethods.ReadProcessMemory(_processHandle, address, b, b.Length, out var read);
+            var tempBuffer = new byte[length];
+            NativeMethods.ReadProcessMemory(_processHandle, address, tempBuffer, tempBuffer.Length, out var read);
 
-            var affectedBreakpoints = _breakpoints.Values.Where(x =>
+            // Int3 breakpoints are changes in code and therefore change the memory of a process.
+            // To still view the original memory, we need to obtain all breakpoints and revert the
+            // changed code in the read memory.
+            
+            var affectedBreakpoints = _int3Breakpoints.Values.Where(x =>
                 (ulong) x.Address >= (ulong) address && (ulong) x.Address < (ulong) (address + length));
+            
             foreach (var breakpoint in affectedBreakpoints)
             {
                 int start = (int) (breakpoint.Address - (int) address);
                 int end = Math.Min(start + breakpoint.OriginalBytes.Length, length);
-                Buffer.BlockCopy(breakpoint.OriginalBytes, 0, b, start, end - start);
+                Buffer.BlockCopy(breakpoint.OriginalBytes, 0, tempBuffer, start, end - start);
             }
             
-            Buffer.BlockCopy(b, 0, buffer, offset, length);
+            Buffer.BlockCopy(tempBuffer, 0, buffer, offset, length);
         }
 
         public void WriteMemory(IntPtr address, byte[] buffer, int offset, int length)
         {
-            byte[] b = new byte[length];
-            Buffer.BlockCopy(buffer, offset, b, 0, length);
-            NativeMethods.WriteProcessMemory(_processHandle, address, b, b.Length, out var written);
+            var tempBuffer = new byte[length];
+            Buffer.BlockCopy(buffer, offset, tempBuffer, 0, length);
+            NativeMethods.WriteProcessMemory(_processHandle, address, tempBuffer, tempBuffer.Length, out var written);
+            
+            // Code memory is loaded into the cache of the CPU. Make sure the changes appear in the cache too.
             NativeMethods.FlushInstructionCache(_processHandle, address, written);
         }
 
@@ -173,7 +180,7 @@ namespace Ladybug.Core.Windows
 
         internal Int3Breakpoint GetBreakpointByAddress(IntPtr address)
         {
-            _breakpoints.TryGetValue(address, out var breakpoint);
+            _int3Breakpoints.TryGetValue(address, out var breakpoint);
             return breakpoint;
         }
     }

@@ -39,6 +39,7 @@ namespace Ladybug.Core.Windows
 
         public IThreadContext GetThreadContext()
         {
+            // TODO: determine whether a process is 32-bit or 64-bit.
             return new X86ThreadContext32(_threadHandle);
         }
     }

@@ -81,26 +81,35 @@ namespace Ladybug.Core.Windows
             IsActive = true;
             var started = new ManualResetEvent(false);
             DebuggeeProcess process = null;
+            
+            // Spawn debugger loop on new thread.
             new Thread(() =>
             {
+                // Initialize startup info.
                 var startupInfo = new STARTUPINFO();
                 startupInfo.cb = (uint) Marshal.SizeOf<STARTUPINFO>();
 
+                // Create process with debug flag set.
                 var processInfo = NativeMethods.CreateProcess(
                     null, info.CommandLine, IntPtr.Zero, IntPtr.Zero, false,
                     ProcessCreationFlags.DEBUG_ONLY_THIS_PROCESS | ProcessCreationFlags.CREATE_NEW_CONSOLE,
                     IntPtr.Zero, null, ref startupInfo);
 
                 process = GetOrCreateProcess(processInfo.hProcess, processInfo.dwProcessId);
+                
+                // Signal process has started.
                 started.Set();
                 
+                // Enter debugger loop.
                 DebuggerLoop();
             })
             {
                 IsBackground = true
             }.Start();
 
+            // Wait for process.
             started.WaitOne();
+            
             return process;
         }
 
@@ -132,6 +141,8 @@ namespace Ladybug.Core.Windows
                 case DebuggerAction.Stop:
                     throw new ArgumentOutOfRangeException(nameof(nextAction));
             }
+            
+            // Signal debugger loop next action was specified. 
             _continueEvent.Set();
         }
 
@@ -139,78 +150,58 @@ namespace Ladybug.Core.Windows
         {
             while (IsActive)
             {
+                // Handle next debugger event. 
                 var nextEvent = NativeMethods.WaitForDebugEvent(uint.MaxValue);
-                var nextAction = DebuggerAction.Continue;
-
-                switch (nextEvent.dwDebugEventCode)
-                {
-                    case DebugEventCode.CREATE_PROCESS_DEBUG_EVENT:
-                        nextAction = HandleCreateProcessDebugEvent(nextEvent);
-                        break;
-                    case DebugEventCode.EXIT_PROCESS_DEBUG_EVENT:
-                        nextAction = HandleExitProcessDebugEvent(nextEvent);
-                        break;
-                    case DebugEventCode.OUTPUT_DEBUG_STRING_EVENT:
-                        nextAction = HandleOutputStringDebugEvent(nextEvent);
-                        break;
-                    case DebugEventCode.CREATE_THREAD_DEBUG_EVENT:
-                        nextAction = HandleCreateThreadDebugEvent(nextEvent);
-                        break;
-                    case DebugEventCode.EXCEPTION_DEBUG_EVENT:
-                        nextAction = HandleExceptionDebugEvent(nextEvent);
-                        break;
-                    case DebugEventCode.EXIT_THREAD_DEBUG_EVENT:
-                        nextAction = HandleExitThreadDebugEvent(nextEvent);
-                        break;
-                    case DebugEventCode.LOAD_DLL_DEBUG_EVENT:
-                        nextAction = HandleLoadDllDebugEvent(nextEvent);
-                        break;
-                    case DebugEventCode.RIP_EVENT:
-                        break;
-                    case DebugEventCode.UNLOAD_DLL_DEBUG_EVENT:
-                        nextAction = HandleUnloadDllDebugEvent(nextEvent);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
-
-                switch (nextAction)
-                {
-                    case DebuggerAction.Continue:
-                        _nextContinueStatus = ContinueStatus.DBG_CONTINUE;
-                        break;
-                    case DebuggerAction.ContinueWithException:
-                        _nextContinueStatus = ContinueStatus.DBG_EXCEPTION_NOT_HANDLED;
-                        break;
-                    case DebuggerAction.Stop:
-                        var process = GetProcessById((int) nextEvent.dwProcessId);
-                        var thread = process.GetThreadById((int) nextEvent.dwThreadId)
-                                     ?? new DebuggeeThread(process, IntPtr.Zero, (int) nextEvent.dwThreadId, IntPtr.Zero);
-                        var eventArgs = new DebuggeeThreadEventArgs(thread);
-                        eventArgs.NextAction = DebuggerAction.Stop;
-                        OnPaused(eventArgs);
-                        switch (eventArgs.NextAction)
-                        {
-                            case DebuggerAction.Continue:
-                                _nextContinueStatus = ContinueStatus.DBG_CONTINUE;
-                                break;
-                            case DebuggerAction.ContinueWithException:
-                                _nextContinueStatus = ContinueStatus.DBG_EXCEPTION_NOT_HANDLED;
-                                break;
-                            case DebuggerAction.Stop:
-                                _continueEvent.WaitOne();
-                                break;
-                            default:
-                                throw new ArgumentOutOfRangeException();
-                        }
-                        break;
-                }
+                var nextAction = HandleDebugEvent(nextEvent);
                 
+                // Handle action that might have been set by subscribed event handlers.
+                HandleNextAction(nextAction, nextEvent);
+                
+                // Continue execution.
                 NativeMethods.ContinueDebugEvent(
                     nextEvent.dwProcessId, 
                     nextEvent.dwThreadId,
                     _nextContinueStatus);
             }    
+        }
+
+        private DebuggerAction HandleDebugEvent(DEBUG_EVENT nextEvent)
+        {
+            var nextAction = DebuggerAction.Continue;
+
+            switch (nextEvent.dwDebugEventCode)
+            {
+                case DebugEventCode.CREATE_PROCESS_DEBUG_EVENT:
+                    nextAction = HandleCreateProcessDebugEvent(nextEvent);
+                    break;
+                case DebugEventCode.EXIT_PROCESS_DEBUG_EVENT:
+                    nextAction = HandleExitProcessDebugEvent(nextEvent);
+                    break;
+                case DebugEventCode.OUTPUT_DEBUG_STRING_EVENT:
+                    nextAction = HandleOutputStringDebugEvent(nextEvent);
+                    break;
+                case DebugEventCode.CREATE_THREAD_DEBUG_EVENT:
+                    nextAction = HandleCreateThreadDebugEvent(nextEvent);
+                    break;
+                case DebugEventCode.EXCEPTION_DEBUG_EVENT:
+                    nextAction = HandleExceptionDebugEvent(nextEvent);
+                    break;
+                case DebugEventCode.EXIT_THREAD_DEBUG_EVENT:
+                    nextAction = HandleExitThreadDebugEvent(nextEvent);
+                    break;
+                case DebugEventCode.LOAD_DLL_DEBUG_EVENT:
+                    nextAction = HandleLoadDllDebugEvent(nextEvent);
+                    break;
+                case DebugEventCode.RIP_EVENT:
+                    break;
+                case DebugEventCode.UNLOAD_DLL_DEBUG_EVENT:
+                    nextAction = HandleUnloadDllDebugEvent(nextEvent);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            return nextAction;
         }
 
         private DebuggerAction HandleCreateProcessDebugEvent(DEBUG_EVENT debugEvent)
@@ -219,6 +210,7 @@ namespace Ladybug.Core.Windows
             var process = GetOrCreateProcess(info.hProcess, (int) debugEvent.dwProcessId);
             process.BaseAddress = info.lpBaseOfImage;
             
+            // Create process event also spawns a new thread. 
             var thread = new DebuggeeThread(process, info.hThread, (int) debugEvent.dwThreadId, info.lpStartAddress);
             process.AddThread(thread);
             
@@ -275,8 +267,13 @@ namespace Ladybug.Core.Windows
             var info = debugEvent.InterpretDebugInfoAs<OUTPUT_DEBUG_STRING_INFO>();
             var process = GetProcessById((int) debugEvent.dwProcessId);
             var thread = process.GetThreadById((int) debugEvent.dwThreadId);
+
+            var eventArgs = new DebuggeeOutputStringEventArgs(thread,
+                process.ReadString(
+                    info.lpDebugStringData, 
+                    info.nDebugStringLength, 
+                    info.fUnicode == 0));
             
-            var eventArgs = new DebuggeeOutputStringEventArgs(thread, process.ReadString(info.lpDebugStringData, info.nDebugStringLength, info.fUnicode == 0));
             OnOutputStringSent(eventArgs);
             
             return eventArgs.NextAction;
@@ -288,6 +285,7 @@ namespace Ladybug.Core.Windows
             var process = GetProcessById((int) debugEvent.dwProcessId);
             var thread = process.GetThreadById((int) debugEvent.dwThreadId);
 
+            // LOAD_DLL_DEBUG_INFO.lpImageName is a char** or a wchar_t**, which can be null.
             string name = null;
             try
             {
@@ -299,6 +297,7 @@ namespace Ladybug.Core.Windows
 
                     if (ptr != IntPtr.Zero)
                     {
+                        // Read MAX_PATH amount of bytes, and then only include up to the zero-terminating string.
                         name = process.ReadString(ptr, 255, info.fUnicode == 0);
                         name = name.Remove(name.IndexOf('\0'));
                     }
@@ -306,6 +305,8 @@ namespace Ladybug.Core.Windows
             }
             catch (Win32Exception)
             {
+                // Reading failed, possibly due to an invalid pointer address. Set to no name instead.
+                name = null;
             }
 
             var library = new DebuggeeLibrary(process, name, info.lpBaseOfDll);
@@ -346,6 +347,11 @@ namespace Ladybug.Core.Windows
             switch (info.ExceptionRecord.ExceptionCode)
             {
                 case ExceptionCode.EXCEPTION_BREAKPOINT:
+                    
+                    // If signalled by an int3, the exception was thrown after the execution of int3.
+                    // Find corresponding breakpoint and restore the instruction pointer so that it seems
+                    // it has paused execution before the int3.
+                    
                     uint eip = (uint) thread.GetThreadContext().GetRegisterByName("eip").Value - 1;
                     var breakpoint = process.GetBreakpointByAddress((IntPtr) eip);
                     if (breakpoint != null)
@@ -357,6 +363,8 @@ namespace Ladybug.Core.Windows
                     
                     break;
                 default:
+                    
+                    // Forward exception to debugger.
                     OnExceptionOccurred(new DebuggeeExceptionEventArgs(thread,
                         new DebuggeeException((uint) info.ExceptionRecord.ExceptionCode,
                             info.ExceptionRecord.ExceptionCode.ToString(), 
@@ -366,6 +374,48 @@ namespace Ladybug.Core.Windows
             }
             
             return DebuggerAction.Stop;
+        }
+
+        private void HandleNextAction(DebuggerAction nextAction, DEBUG_EVENT nextEvent)
+        {
+            switch (nextAction)
+            {
+                case DebuggerAction.Continue:
+                    _nextContinueStatus = ContinueStatus.DBG_CONTINUE;
+                    break;
+                
+                case DebuggerAction.ContinueWithException:
+                    _nextContinueStatus = ContinueStatus.DBG_EXCEPTION_NOT_HANDLED;
+                    break;
+                
+                case DebuggerAction.Stop:
+                    var process = GetProcessById((int) nextEvent.dwProcessId);
+                    var thread = process.GetThreadById((int) nextEvent.dwThreadId)
+                                 ?? new DebuggeeThread(process, IntPtr.Zero, (int) nextEvent.dwThreadId, IntPtr.Zero);
+                
+                    var eventArgs = new DebuggeeThreadEventArgs(thread);
+                    eventArgs.NextAction = DebuggerAction.Stop;
+                    OnPaused(eventArgs);
+                    
+                    switch (eventArgs.NextAction)
+                    {
+                        case DebuggerAction.Continue:
+                            _nextContinueStatus = ContinueStatus.DBG_CONTINUE;
+                            break;
+                        
+                        case DebuggerAction.ContinueWithException:
+                            _nextContinueStatus = ContinueStatus.DBG_EXCEPTION_NOT_HANDLED;
+                            break;
+                        
+                        case DebuggerAction.Stop:
+                            _continueEvent.WaitOne();
+                            break;
+                        default:
+                            throw new ArgumentOutOfRangeException();
+                    }
+
+                    break;
+            }
         }
 
         private void ReleaseUnmanagedResources()
