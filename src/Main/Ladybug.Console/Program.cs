@@ -15,7 +15,7 @@ namespace Ladybug.Console
         private static IDebuggerSession _session;
         private static IDebuggeeThread _currentThread;
         
-        private static Logger _logger = new Logger();
+        private static readonly Logger _logger = new Logger();
         private static InstructionPrinter _printer = new InstructionPrinter();
 
         private static bool _justStepped = false;
@@ -23,6 +23,8 @@ namespace Ladybug.Console
 
         public static void Main(string[] args)
         {
+            PrintAbout();
+            
             if (args.Length == 0)
             {
                 _logger.WriteLine("Usage: Ladybug.Console.exe <file> [arguments]");
@@ -42,16 +44,16 @@ namespace Ladybug.Console
             _session.Paused += SessionOnPaused;
             _session.Stepped  += SessionOnStepped;
             
-            var process = _session.StartProcess(new DebuggerProcessStartInfo
+            _session.StartProcess(new DebuggerProcessStartInfo
             {
                 CommandLine = string.Join(" ", args) 
             });
-
 
             _executor = new CommandExecutor(_logger);
             _executor.RegisterCommand(new GoCommand(), "g", "go");
             _executor.RegisterCommand(new StepCommand(), "s", "step");
             _executor.RegisterCommand(new DumpMemoryCommand(), "dm", "dump");
+            _executor.RegisterCommand(new EditMemoryCommand(), "wm", "write");
             _executor.RegisterCommand(new ModulesCommand(), "m", "modules");
             _executor.RegisterCommand(new BreakpointCommand(), "bp", "breakpoint");
             _executor.RegisterCommand(new BreakpointsCommand(), "bps", "breakpoints");
@@ -81,6 +83,19 @@ namespace Ladybug.Console
             }
         }
 
+        private static void PrintAbout()
+        {
+            var consoleAppInfo = FileVersionInfo.GetVersionInfo(typeof(Program).Assembly.Location);
+            var coreAppInfo = FileVersionInfo.GetVersionInfo(typeof(IDebuggerSession).Assembly.Location);
+            var backendInfo = FileVersionInfo.GetVersionInfo(typeof(DebuggerSession).Assembly.Location);
+            
+            var assemblyName = typeof(Program).Assembly.GetName();
+            _logger.WriteLine(LoggerMessageType.Default,
+                $"{assemblyName.Name}, v{consoleAppInfo.FileVersion}, Core v{coreAppInfo.FileVersion}, Windows backend v{backendInfo.FileVersion}\n" +
+                $"Copyright: {consoleAppInfo.LegalCopyright}\n" + 
+                $"Repository and issue tracker: https://github.com/Washi1337/Ladybug");
+        }
+        
         private static void SessionOnOutputStringSent(object sender, DebuggeeOutputStringEventArgs args)
         {
             _logger.WriteLine(LoggerMessageType.OutputString, "Debuggee sent debug message: " + args.Message);

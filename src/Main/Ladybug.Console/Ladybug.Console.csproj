@@ -44,6 +44,7 @@
     <Compile Include="Commands\CommandExecutor.cs" />
     <Compile Include="Commands\DisassembleCommand.cs" />
     <Compile Include="Commands\DumpMemoryCommand.cs" />
+    <Compile Include="Commands\EditMemoryCommand.cs" />
     <Compile Include="Commands\GoCommand.cs" />
     <Compile Include="Commands\ICommand.cs" />
     <Compile Include="Commands\ModulesCommand.cs" />
