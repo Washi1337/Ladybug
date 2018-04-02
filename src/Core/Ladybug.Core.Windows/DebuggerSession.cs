@@ -20,11 +20,17 @@ namespace Ladybug.Core.Windows
         public event EventHandler<BreakpointEventArgs> BreakpointHit;
         public event EventHandler<DebuggeeOutputStringEventArgs> OutputStringSent;
         public event EventHandler<DebuggeeExceptionEventArgs> ExceptionOccurred;
+        public event EventHandler<DebuggeeThreadEventArgs> Stepped;
         public event EventHandler<DebuggeeThreadEventArgs> Paused;
 
         private readonly IDictionary<int, IDebuggeeProcess> _processes = new Dictionary<int, IDebuggeeProcess>();
-        private ContinueStatus _nextContinueStatus;
         private readonly AutoResetEvent _continueEvent = new AutoResetEvent(false);
+        private readonly IList<Int3Breakpoint> _pendingBreakpoint = new List<Int3Breakpoint>();
+        private bool _isStepping = false;
+        
+        private ContinueStatus _nextContinueStatus;
+        private DebuggeeThread _currentThread;
+        private bool _isPaused;
         
         public DebuggerSession()
         {
@@ -128,21 +134,45 @@ namespace Ladybug.Core.Windows
             return AttachToProcess(processId);
         }
 
+        private void RestoreBreakpoints()
+        {
+            foreach (var bp in _pendingBreakpoint.Where(x => x.Enabled))
+                bp.InstallInt3();
+            _pendingBreakpoint.Clear();
+        }
+
         public void Continue(DebuggerAction nextAction)
         {
-            switch (nextAction)
+            if (_isPaused)
             {
-                case DebuggerAction.Continue:
-                    _nextContinueStatus = ContinueStatus.DBG_CONTINUE;
-                    break;
-                case DebuggerAction.ContinueWithException:
-                    _nextContinueStatus = ContinueStatus.DBG_EXCEPTION_NOT_HANDLED;
-                    break;
-                case DebuggerAction.Stop:
-                    throw new ArgumentOutOfRangeException(nameof(nextAction));
+                _isStepping = false;
+                if (_pendingBreakpoint.Count > 0)
+                    SignalSingleInstructionStep(nextAction);
+                else
+                    SignalDebuggerLoop(nextAction);
             }
-            
-            // Signal debugger loop next action was specified. 
+        }
+
+        public void Step(DebuggerAction nextAction)
+        {
+            if (_isPaused)
+            {
+                _isStepping = true;
+                SignalSingleInstructionStep(nextAction);
+            }
+        }
+
+        private void SignalSingleInstructionStep(DebuggerAction nextAction)
+        {
+            var threadContext = _currentThread.GetThreadContext();
+            threadContext.GetRegisterByName("tf").Value = true;
+            threadContext.Flush();
+            SignalDebuggerLoop(nextAction);
+        }
+
+        private void SignalDebuggerLoop(DebuggerAction nextAction)
+        {
+            _nextContinueStatus = nextAction.ToContinueStatus();
             _continueEvent.Set();
         }
 
@@ -152,6 +182,10 @@ namespace Ladybug.Core.Windows
             {
                 // Handle next debugger event. 
                 var nextEvent = NativeMethods.WaitForDebugEvent(uint.MaxValue);
+                
+                _isPaused = true;
+                _currentThread = GetProcessById((int) nextEvent.dwProcessId)?.GetThreadById((int) nextEvent.dwThreadId);
+                
                 var nextAction = HandleDebugEvent(nextEvent);
                 
                 // Handle action that might have been set by subscribed event handlers.
@@ -162,6 +196,8 @@ namespace Ladybug.Core.Windows
                     nextEvent.dwProcessId, 
                     nextEvent.dwThreadId,
                     _nextContinueStatus);
+                
+                _isPaused = false;
             }    
         }
 
@@ -211,8 +247,8 @@ namespace Ladybug.Core.Windows
             process.BaseAddress = info.lpBaseOfImage;
             
             // Create process event also spawns a new thread. 
-            var thread = new DebuggeeThread(process, info.hThread, (int) debugEvent.dwThreadId, info.lpStartAddress);
-            process.AddThread(thread);
+            _currentThread = new DebuggeeThread(process, info.hThread, (int) debugEvent.dwThreadId, info.lpStartAddress);
+            process.AddThread(_currentThread);
             
             var eventArgs = new DebuggeeProcessEventArgs(process);
             OnProcessStarted(eventArgs);
@@ -343,15 +379,17 @@ namespace Ladybug.Core.Windows
             var info = debugEvent.InterpretDebugInfoAs<EXCEPTION_DEBUG_INFO>();
             var process = GetProcessById((int) debugEvent.dwProcessId);
             var thread = process.GetThreadById((int) debugEvent.dwThreadId);
+
+            var nextAction = DebuggerAction.Stop;
             
             switch (info.ExceptionRecord.ExceptionCode)
             {
                 case ExceptionCode.EXCEPTION_BREAKPOINT:
-                    
+                {
                     // If signalled by an int3, the exception was thrown after the execution of int3.
                     // Find corresponding breakpoint and restore the instruction pointer so that it seems
                     // it has paused execution before the int3.
-                    
+
                     uint eip = (uint) thread.GetThreadContext().GetRegisterByName("eip").Value - 1;
                     var breakpoint = process.GetBreakpointByAddress((IntPtr) eip);
                     if (breakpoint != null)
@@ -359,21 +397,48 @@ namespace Ladybug.Core.Windows
                         var eventArgs = new BreakpointEventArgs(thread, breakpoint);
                         breakpoint.HandleBreakpointEvent(eventArgs);
                         OnBreakpointHit(eventArgs);
+                        _pendingBreakpoint.Add(breakpoint);
+                    }
+
+                    break;
+                }
+                
+                case ExceptionCode.EXCEPTION_SINGLE_STEP:
+                {
+                    if (_pendingBreakpoint.Count > 0)
+                    {
+                        RestoreBreakpoints();
+                        if (!_isStepping)
+                        {
+                            nextAction = DebuggerAction.Continue;
+                            break;
+                        }
                     }
                     
+                    var eventArgs = new DebuggeeThreadEventArgs(thread)
+                    {
+                        NextAction = DebuggerAction.Stop
+                    };
+                    OnStepped(eventArgs);
+                    nextAction = eventArgs.NextAction;
                     break;
+                }
+
                 default:
-                    
+                {
                     // Forward exception to debugger.
-                    OnExceptionOccurred(new DebuggeeExceptionEventArgs(thread,
+                    var eventArgs = new DebuggeeExceptionEventArgs(thread,
                         new DebuggeeException((uint) info.ExceptionRecord.ExceptionCode,
-                            info.ExceptionRecord.ExceptionCode.ToString(), 
+                            info.ExceptionRecord.ExceptionCode.ToString(),
                             info.dwFirstChance == 1,
-                            info.ExceptionRecord.ExceptionFlags == 0)));
+                            info.ExceptionRecord.ExceptionFlags == 0));
+                    OnExceptionOccurred(eventArgs);
+                    nextAction = eventArgs.NextAction;
                     break;
+                }
             }
             
-            return DebuggerAction.Stop;
+            return nextAction;
         }
 
         private void HandleNextAction(DebuggerAction nextAction, DEBUG_EVENT nextEvent)
@@ -478,6 +543,11 @@ namespace Ladybug.Core.Windows
         protected virtual void OnBreakpointHit(BreakpointEventArgs e)
         {
             BreakpointHit?.Invoke(this, e);
+        }
+
+        protected virtual void OnStepped(DebuggeeThreadEventArgs e)
+        {
+            Stepped?.Invoke(this, e);
         }
     }
 }

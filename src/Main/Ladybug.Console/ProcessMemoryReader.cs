@@ -10,6 +10,8 @@ namespace Ladybug.Console
 
         public ProcessMemoryReader(IDebuggeeProcess process)
         {
+            StartPosition = (long) process.BaseAddress;
+            Position = StartPosition;
             _process = process ?? throw new ArgumentNullException(nameof(process));
         }
         

@@ -23,6 +23,23 @@ namespace Ladybug.Console
             get;
         } 
         
+        public void Write(string message)
+        {
+            Write(LoggerMessageType.Log, message);
+        }
+        
+        public void Write(string message, params object[] arguments)
+        {
+            Write(LoggerMessageType.Log, message, arguments);
+        }
+
+        public void Write(LoggerMessageType messageType, string message, params object[] arguments)
+        {
+            System.Console.ForegroundColor = ForegroundColors[messageType];
+            System.Console.Write(message, arguments);
+            System.Console.ForegroundColor = ForegroundColors[LoggerMessageType.Default];
+        }
+        
         public void WriteLine(string message)
         {
             WriteLine(LoggerMessageType.Log, message);
@@ -36,7 +53,10 @@ namespace Ladybug.Console
         public void WriteLine(LoggerMessageType messageType, string message, params object[] arguments)
         {
             System.Console.ForegroundColor = ForegroundColors[messageType];
-            System.Console.WriteLine(message, arguments);
+            if (arguments.Length == 0)
+                System.Console.WriteLine(message);
+            else
+                System.Console.WriteLine(message, arguments);
             System.Console.ForegroundColor = ForegroundColors[LoggerMessageType.Default];
         }
     }

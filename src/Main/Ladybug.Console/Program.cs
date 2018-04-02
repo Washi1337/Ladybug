@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using AsmResolver.X86;
 using Ladybug.Core;
 using Ladybug.Core.Windows;
@@ -17,6 +18,8 @@ namespace Ladybug.Console
         
         private static Logger _logger = new Logger();
         private static InstructionPrinter _printer = new InstructionPrinter();
+
+        private static bool _justStepped = false;
 
         public static void Main(string[] args)
         {
@@ -37,6 +40,7 @@ namespace Ladybug.Console
             _session.ExceptionOccurred += SessionOnExceptionOccurred;
             _session.BreakpointHit += SessionOnBreakpointHit;
             _session.Paused += SessionOnPaused;
+            _session.Stepped  += SessionOnStepped;
             
             var process = _session.StartProcess(new DebuggerProcessStartInfo
             {
@@ -59,6 +63,18 @@ namespace Ladybug.Console
                         case "go":
                             HandleGoCommand(commandArgs);
                             break;
+                        case "s":
+                        case "step":
+                            HandleStepCommand(commandArgs);
+                            break;
+                        case "dm":
+                        case "dump":
+                            HandleDumpMemoryCommand(commandArgs);
+                            break;
+                        case "m":
+                        case "modules":
+                            HandleListModulesCommand(commandArgs);
+                            break;
                         case "bp":
                         case "breakpoint":
                             HandleBreakpointCommand(commandArgs);
@@ -73,7 +89,7 @@ namespace Ladybug.Console
                             break;
                         case "r":
                         case "registers":
-                            HandleRegistersCommand();
+                            HandleRegistersCommand(commandArgs);
                             break;
                         case "break":
                             process.Break();
@@ -83,29 +99,6 @@ namespace Ladybug.Console
                             break;
                     }
                 }
-            }
-        }
-
-        private static void HandleBreakpointCommand(string[] commandArgs)
-        {
-            if (commandArgs.Length > 1)
-            {
-                if (ulong.TryParse(commandArgs[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture,
-                    out ulong address))
-                {
-                    _session.GetProcesses().First().SetSoftwareBreakpoint((IntPtr) address);
-                    return;
-                }
-            }
-            _logger.WriteLine("Usage: breakpoint <address>");
-        }
-
-        private static void HandleBreakpointsCommand(string[] commandArgs)
-        {
-            foreach (var breakpoint in _session.GetAllBreakpoints())
-            {
-                _logger.WriteLine("{0:X8} : {1}", breakpoint.Address.ToInt64(),
-                    breakpoint.Enabled ? "Enabled" : "Disabled");
             }
         }
 
@@ -122,6 +115,88 @@ namespace Ladybug.Console
             _session.Continue(DebuggerAction.Continue);
         }
 
+        private static void HandleStepCommand(string[] commandArgs)
+        {
+            _session.Step(DebuggerAction.Continue);
+        }
+
+        private static void HandleDumpMemoryCommand(string[] commandArgs)
+        {
+            if (commandArgs.Length > 1)
+            {
+                if (ulong.TryParse(commandArgs[1], NumberStyles.HexNumber, CultureInfo.InvariantCulture,
+                    out ulong address))
+                {
+                    var size = X86OperandSize.Byte;
+                    if (commandArgs.Length > 2)
+                    {
+                        switch (commandArgs[2].ToLowerInvariant())
+                        {
+                            case "b":
+                                size = X86OperandSize.Byte;
+                                break;
+                            case "w":
+                                size = X86OperandSize.Word;
+                                break;
+                            case "dw":
+                                size = X86OperandSize.Dword;
+                                break;
+                        } 
+                    }
+                    DumpMemory(address, 5, size);
+                    return;
+                }
+            }
+            _logger.WriteLine("Usage: dump <address> [b|w|dw]");
+        }
+
+        private static void HandleListModulesCommand(string[] commandArgs)
+        {
+            foreach (var lib in _session.GetProcesses().First().Libraries)
+            {
+                _logger.WriteLine("{0:X8}: {1}", lib.BaseOfLibrary.ToInt64(), (lib.Name ?? "<no name>"));
+            }
+        }
+
+        private static void HandleBreakpointCommand(string[] commandArgs)
+        {
+            if (commandArgs.Length > 2)
+            {
+                if (ulong.TryParse(commandArgs[2], NumberStyles.HexNumber, CultureInfo.InvariantCulture,
+                    out ulong address))
+                {
+                    var debuggeeProcess = _session.GetProcesses().First();
+                    switch (commandArgs[1].ToLowerInvariant())
+                    {
+                        case "set":
+                            debuggeeProcess.SetSoftwareBreakpoint((IntPtr) address);
+                            break;
+                        case "remove":
+                            debuggeeProcess.RemoveSoftwareBreakpoint(
+                                debuggeeProcess.GetBreakpintByAddress((IntPtr) address));
+                            break;
+                        case "enable":
+                            debuggeeProcess.GetBreakpintByAddress((IntPtr) address).Enabled = true;
+                            break;
+                        case "disable":
+                            debuggeeProcess.GetBreakpintByAddress((IntPtr) address).Enabled = false;
+                            break;
+                    }
+                    return;
+                }
+            }
+            _logger.WriteLine("Usage: breakpoint <set|remove|enable|disable> <address>");
+        }
+
+        private static void HandleBreakpointsCommand(string[] commandArgs)
+        {
+            foreach (var breakpoint in _session.GetAllBreakpoints())
+            {
+                _logger.WriteLine("{0:X8} : {1}", breakpoint.Address.ToInt64(),
+                    breakpoint.Enabled ? "Enabled" : "Disabled");
+            }
+        }
+
         private static void HandleDisassembleCommand(string[] commandArgs)
         {
             switch (commandArgs.Length)
@@ -135,9 +210,41 @@ namespace Ladybug.Console
                 _printer.PrintInstruction(_disassembler.ReadNextInstruction());
         }
 
-        private static void HandleRegistersCommand()
+        private static void HandleRegistersCommand(string[] commandArgs)
         {
-            DumpRegisters(_currentThread.GetThreadContext());
+            var threadContext = _currentThread.GetThreadContext();
+            
+            if (commandArgs.Length > 2)
+            {
+                string regName = commandArgs[1];
+                string regValue = commandArgs[2];
+
+                var register = threadContext.GetRegisterByName(regName);
+                switch (register.Size)
+                {
+                    case 1:
+                        register.Value = regValue == "1";
+                        break;
+                    case 8:
+                        register.Value = byte.Parse(regValue, NumberStyles.HexNumber);
+                        break;
+                    case 16:
+                        register.Value = ushort.Parse(regValue, NumberStyles.HexNumber);
+                        break;
+                    case 32:
+                        register.Value = uint.Parse(regValue, NumberStyles.HexNumber);
+                        break;
+                    case 64:
+                        register.Value = ulong.Parse(regValue, NumberStyles.HexNumber);
+                        break;
+                    default:
+                        break;
+                }
+                
+                threadContext.Flush();
+            }
+
+            DumpRegisters(threadContext);
         }
 
         private static void DumpRegisters(IThreadContext context)
@@ -149,6 +256,66 @@ namespace Ladybug.Console
             }
         }
 
+        private static void DumpMemory(ulong address, int rows, X86OperandSize size)
+        {
+            const int rowSize = 0x10;
+            
+            var buffer = new byte[rows * rowSize];
+            _session.GetProcesses().First().ReadMemory((IntPtr) address, buffer, 0, buffer.Length);
+
+            int stepSize = 0;
+            switch (size)
+            {
+                case X86OperandSize.Byte:
+                    stepSize = 1;
+                    break;
+                case X86OperandSize.Word:
+                    stepSize = 2;
+                    break;
+                case X86OperandSize.Dword:
+                    stepSize = 4;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(size));
+            }
+
+            for (int row = 0; row < rows; row++)
+            {
+                _logger.Write("{0:X8}:  ", address + (ulong) (row * rowSize));
+
+                var builder = new StringBuilder();
+                for (int col = 0; col < rowSize; col += stepSize)
+                {
+                    if (col % 4 == 0)
+                        _logger.Write(" ");
+                    
+                    ulong currentValue = 0;
+                    switch (size)
+                    {
+                        case X86OperandSize.Byte:
+                            currentValue = buffer[row * rowSize + col];
+                            break;
+                        case X86OperandSize.Word:
+                            currentValue = BitConverter.ToUInt16(buffer, row * rowSize + col);
+                            break;
+                        case X86OperandSize.Dword:
+                            currentValue = BitConverter.ToUInt32(buffer, row * rowSize + col);
+                            break;
+                    }
+                    
+                    _logger.Write("{0} ", currentValue.ToString("X" + (stepSize * 2)));
+
+                    if (stepSize == 1) 
+                    {
+                        char currentChar = (char) currentValue;
+                        builder.Append(char.IsControl(currentChar) ? '.' : currentChar);
+                    }
+                }
+
+                _logger.WriteLine("  " + builder.ToString());
+            }
+        }
+
         private static void SessionOnOutputStringSent(object sender, DebuggeeOutputStringEventArgs args)
         {
             _logger.WriteLine(LoggerMessageType.OutputString, "Debuggee sent debug message: " + args.Message);
@@ -156,14 +323,26 @@ namespace Ladybug.Console
 
         private static void SessionOnPaused(object sender, DebuggeeThreadEventArgs args)
         {
-            _logger.WriteLine("Debuggee paused.");
             _currentThread = args.Thread;
             var threadContext = _currentThread.GetThreadContext();
-            
-            _logger.WriteLine("Thread ID: " + args.Thread.Id);
-            DumpRegisters(threadContext);
+
+            if (!_justStepped)
+            {
+                _logger.WriteLine("Debuggee paused.");
+                _logger.WriteLine("Thread ID: " + args.Thread.Id);
+                DumpRegisters(threadContext);
+            }
+
             _reader.Position = (uint) threadContext.GetRegisterByName("eip").Value;
+
             _printer.PrintInstruction(_disassembler.ReadNextInstruction());
+
+            _justStepped = false;
+        }
+
+        private static void SessionOnStepped(object sender, DebuggeeThreadEventArgs args)
+        {
+            _justStepped = true;
         }
 
         private static void SessionOnProcessStarted(object sender, DebuggeeProcessEventArgs args)
@@ -201,12 +380,12 @@ namespace Ladybug.Console
 
         private static void SessionOnExceptionOccurred(object sender, DebuggeeExceptionEventArgs args)
         {
-            _logger.WriteLine(LoggerMessageType.Error, "{0} exception occurred in thread {1} with error code {2:X}. {3}. Error is {4}.",
+            _logger.WriteLine(LoggerMessageType.Error, "{0} exception occurred in thread {1} with error code {2:X}. {3}.",
                 args.Exception.IsFirstChance ? "First chance" : "Last chance",
                 args.Thread.Id, 
                 args.Exception.ErrorCode,
                 args.Exception.Message,
-                args.Exception.Continuable ? "continuable" : "uncontinuable");
+                args.Exception.Continuable ? string.Empty : "Exception is fatal.");
         }
 
         private static void SessionOnBreakpointHit(object sender, BreakpointEventArgs breakpointEventArgs)

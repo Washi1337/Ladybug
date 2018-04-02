@@ -54,6 +54,11 @@ namespace Ladybug.Core
         event EventHandler<DebuggeeExceptionEventArgs> ExceptionOccurred;
         
         /// <summary>
+        /// Occurs when a debuggee process has stepped one instruction.
+        /// </summary>
+        event EventHandler<DebuggeeThreadEventArgs> Stepped;
+        
+        /// <summary>
         /// Occurs when a debuggee process has paused execution.
         /// </summary>
         event EventHandler<DebuggeeThreadEventArgs> Paused;
@@ -104,5 +109,7 @@ namespace Ladybug.Core
         /// </summary>
         /// <param name="nextAction">The action to perform.</param>
         void Continue(DebuggerAction nextAction);
+
+        void Step(DebuggerAction nextAction);
     }
 }

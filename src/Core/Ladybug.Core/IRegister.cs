@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace Ladybug.Core
@@ -98,6 +99,53 @@ namespace Ladybug.Core
         {
             get { return Value; }
             set { Value = (T) value; }
+        }
+    }
+
+    public class FlagRegister : IChildRegister
+    {
+        public FlagRegister(int bitIndex, string name, ICompoundedRegister parentRegister)
+        {
+            BitIndex = bitIndex;
+            Name = name;
+            ParentRegister = parentRegister;
+        }
+        
+        public int BitIndex
+        {
+            get;
+        }
+
+        public string Name
+        {
+            get;
+        }
+
+        public int Size
+        {
+            get { return 1; }
+        }
+
+        public bool Value
+        {
+            get { return (Convert.ToUInt64(ParentRegister.Value) & (1UL << BitIndex)) != 0; }
+            set
+            {
+                ParentRegister.Value = Convert.ChangeType(
+                    Convert.ToUInt64(ParentRegister.Value) & ~(1UL << BitIndex) | (value ? (1UL << BitIndex) : 0),
+                    ParentRegister.Value.GetType());
+            }
+        }
+
+        object IRegister.Value
+        {
+            get { return Value; }
+            set { Value = (bool) value; }
+        }
+
+        public ICompoundedRegister ParentRegister
+        {
+            get;
         }
     }
 }

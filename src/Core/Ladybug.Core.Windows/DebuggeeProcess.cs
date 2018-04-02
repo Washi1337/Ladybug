@@ -100,6 +100,17 @@ namespace Ladybug.Core.Windows
                 breakpoint.Enabled = false;
         }
 
+        public Int3Breakpoint GetBreakpointByAddress(IntPtr address)
+        {
+            _int3Breakpoints.TryGetValue(address, out var breakpoint);
+            return breakpoint;
+        }
+        
+        IBreakpoint IDebuggeeProcess.GetBreakpintByAddress(IntPtr address)
+        {
+            return GetBreakpointByAddress(address);
+        }
+
         public void ReadMemory(IntPtr address, byte[] buffer, int offset, int length)
         {
             var tempBuffer = new byte[length];
@@ -109,16 +120,16 @@ namespace Ladybug.Core.Windows
             // To still view the original memory, we need to obtain all breakpoints and revert the
             // changed code in the read memory.
             
-            var affectedBreakpoints = _int3Breakpoints.Values.Where(x =>
-                (ulong) x.Address >= (ulong) address && (ulong) x.Address < (ulong) (address + length));
-            
-            foreach (var breakpoint in affectedBreakpoints)
-            {
-                int start = (int) (breakpoint.Address - (int) address);
-                int end = Math.Min(start + breakpoint.OriginalBytes.Length, length);
-                Buffer.BlockCopy(breakpoint.OriginalBytes, 0, tempBuffer, start, end - start);
-            }
-            
+//            var affectedBreakpoints = _int3Breakpoints.Values.Where(x =>
+//                (ulong) x.Address >= (ulong) address && (ulong) x.Address < (ulong) (address + length));
+//            
+//            foreach (var breakpoint in affectedBreakpoints)
+//            {
+//                int start = (int) (breakpoint.Address - (int) address);
+//                int end = Math.Min(start + breakpoint.OriginalBytes.Length, length);
+//                Buffer.BlockCopy(breakpoint.OriginalBytes, 0, tempBuffer, start, end - start);
+//            }
+//            
             Buffer.BlockCopy(tempBuffer, 0, buffer, offset, length);
         }
 
@@ -176,12 +187,6 @@ namespace Ladybug.Core.Windows
         IDebuggeeLibrary IDebuggeeProcess.GetLibraryByBase(IntPtr baseAddress)
         {
             return GetLibraryByBase(baseAddress);
-        }
-
-        internal Int3Breakpoint GetBreakpointByAddress(IntPtr address)
-        {
-            _int3Breakpoints.TryGetValue(address, out var breakpoint);
-            return breakpoint;
         }
     }
 }
