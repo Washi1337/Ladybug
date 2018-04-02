@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Linq;
 using AsmResolver;
 using Ladybug.Core;
+using Ladybug.Core.Windows;
 
 namespace Ladybug.Console
 {
@@ -31,6 +33,12 @@ namespace Ladybug.Console
             get;
         }
 
+        public bool NegateBreakpoints
+        {
+            get;
+            set;
+        }
+
         public IBinaryStreamReader CreateSubReader(long address, int size)
         {
             throw new System.NotImplementedException();
@@ -42,11 +50,31 @@ namespace Ladybug.Console
         }
 
         public byte[] ReadBytes(int count)
-        {
+        { 
             var buffer = new byte[count];
             _process.ReadMemory((IntPtr) Position, buffer, 0, count);
+            
+            // Int3 breakpoints are changes in code and therefore change the memory of a process.
+            // To still view the original memory, we need to obtain all breakpoints and revert the
+            // changed code in the read memory.
+            
+            NegateInt3Breakpoints(count, buffer);
+
             Position += buffer.Length;
             return buffer;
+        }
+
+        private void NegateInt3Breakpoints(int count, byte[] buffer)
+        {
+            var affectedBreakpoints = _process.GetSoftwareBreakpoints().OfType<Int3Breakpoint>().Where(x =>
+                (long) x.Address >= Position && (long) x.Address < Position + count);
+
+            foreach (var breakpoint in affectedBreakpoints)
+            {
+                int start = (int) ((long) breakpoint.Address - Position);
+                int end = Math.Min(start + breakpoint.OriginalBytes.Length, count);
+                Buffer.BlockCopy(breakpoint.OriginalBytes, 0, buffer, start, end - start);
+            }
         }
 
         public byte ReadByte()

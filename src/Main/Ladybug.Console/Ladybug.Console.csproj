@@ -38,6 +38,17 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Commands\BreakCommand.cs" />
+    <Compile Include="Commands\BreakpointCommand.cs" />
+    <Compile Include="Commands\BreakpointsCommand.cs" />
+    <Compile Include="Commands\CommandExecutor.cs" />
+    <Compile Include="Commands\DisassembleCommand.cs" />
+    <Compile Include="Commands\DumpMemoryCommand.cs" />
+    <Compile Include="Commands\GoCommand.cs" />
+    <Compile Include="Commands\ICommand.cs" />
+    <Compile Include="Commands\ModulesCommand.cs" />
+    <Compile Include="Commands\RegisterCommand.cs" />
+    <Compile Include="Commands\StepCommand.cs" />
     <Compile Include="InstructionPrinter.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="LoggerMessageType.cs" />

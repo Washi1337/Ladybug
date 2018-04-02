@@ -101,7 +101,7 @@ namespace Ladybug.Core
         /// </summary>
         /// <param name="address">The address of the breakpoint.</param>
         /// <returns>The breakpoint at the given address, or <c>null</c> if none was found.</returns>
-        IBreakpoint GetBreakpintByAddress(IntPtr address);
+        IBreakpoint GetBreakpointByAddress(IntPtr address);
         
         /// <summary>
         /// Reads raw memory from the target process.

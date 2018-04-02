@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using AsmResolver.X86;
+using Ladybug.Core;
 
 namespace Ladybug.Console
 {
@@ -47,12 +48,20 @@ namespace Ladybug.Console
             get;
         }
         
-        public void PrintInstruction(X86Instruction instruction)
+        public void PrintInstruction(X86Instruction instruction, IBreakpoint breakpoint)
         {
             var original = System.Console.ForegroundColor;
             
+            System.Console.ForegroundColor = breakpoint != null ? ConsoleColor.Black : ConsoleColor.DarkGray;
+            
+            if (breakpoint != null)
+                System.Console.BackgroundColor = breakpoint.Enabled ? ConsoleColor.Red : ConsoleColor.Yellow;
+            
+            System.Console.Write(instruction.Offset.ToString("X8"));
+
             System.Console.ForegroundColor = ConsoleColor.DarkGray;
-            System.Console.Write(instruction.Offset.ToString("X8") + ": ");
+            System.Console.BackgroundColor = ConsoleColor.Black;
+            System.Console.Write(": ");
 
             ConsoleColor color;
             if (!MnemonicColors.TryGetValue(instruction.Mnemonic, out color))

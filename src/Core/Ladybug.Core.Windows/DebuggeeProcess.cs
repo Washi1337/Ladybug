@@ -106,7 +106,7 @@ namespace Ladybug.Core.Windows
             return breakpoint;
         }
         
-        IBreakpoint IDebuggeeProcess.GetBreakpintByAddress(IntPtr address)
+        IBreakpoint IDebuggeeProcess.GetBreakpointByAddress(IntPtr address)
         {
             return GetBreakpointByAddress(address);
         }
@@ -115,21 +115,6 @@ namespace Ladybug.Core.Windows
         {
             var tempBuffer = new byte[length];
             NativeMethods.ReadProcessMemory(_processHandle, address, tempBuffer, tempBuffer.Length, out var read);
-
-            // Int3 breakpoints are changes in code and therefore change the memory of a process.
-            // To still view the original memory, we need to obtain all breakpoints and revert the
-            // changed code in the read memory.
-            
-//            var affectedBreakpoints = _int3Breakpoints.Values.Where(x =>
-//                (ulong) x.Address >= (ulong) address && (ulong) x.Address < (ulong) (address + length));
-//            
-//            foreach (var breakpoint in affectedBreakpoints)
-//            {
-//                int start = (int) (breakpoint.Address - (int) address);
-//                int end = Math.Min(start + breakpoint.OriginalBytes.Length, length);
-//                Buffer.BlockCopy(breakpoint.OriginalBytes, 0, tempBuffer, start, end - start);
-//            }
-//            
             Buffer.BlockCopy(tempBuffer, 0, buffer, offset, length);
         }
 
