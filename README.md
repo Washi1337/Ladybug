@@ -18,26 +18,38 @@ The Ladybug project is written in C# and consists of reusable core libraries tha
 - Dump and edit memory.
 - Receive debug messages given by functions such as OutputDebugString or Debug.Print.
 
+## How to use
+
+1. Download the project as a ZIP file and extract the contents, or clone the project using git. Be sure to also download the submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/Washi1337/Ladybug/ 
+```
+
+2. Compile the application using your IDE of choice, or by executing `msbuild` in the `src` folder.
+
+3. Run `Ladybug.Console.exe` in `src/Main/Ladybug.Console/bin/<configuration>`.
+
+```bash
+LadyBug.Console.exe MyApplicationToDebug.exe
+```
+
 ## Todo
 
-Ladybug is a project that is still in development. Below is a non-exhaustive list that is still in the works:
+Ladybug is a project that is still in development. Below is a non-exhaustive list that is planned to be added:
 
-- Graphical user interface.
-- Stack view.
+- Graphical user interface application.
+- View contents of stack.
 - Modifying x86 code.
 - 64-bit application debugging.
-- More .NET-specific debugging capabilities, such as IL debugging and heap dumps.
-- Plugins support
+- More .NET-specific debugging capabilities, such as IL debugging.
+- Plugins support for the standard user interface applications.
 
 ## Libraries used
 
 The Ladybug project is powered by the following libraries:
 
-- Kernel32.dll: Used as a backend for windows application debugging.
 - [AsmResolver](https://github.com/Washi1337/AsmResolver) : Disassembly of applications. [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
-
-## Contributing 
-
 
 ## Screenshots
 
