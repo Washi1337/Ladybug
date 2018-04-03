@@ -333,9 +333,7 @@ namespace Ladybug.Core.Windows
 
                     if (ptr != IntPtr.Zero)
                     {
-                        // Read MAX_PATH amount of bytes, and then only include up to the zero-terminating string.
-                        name = process.ReadString(ptr, 255, info.fUnicode == 0);
-                        name = name.Remove(name.IndexOf('\0'));
+                        name = process.ReadZeroTerminatedString(ptr, info.fUnicode == 0);
                     }
                 }
             }
