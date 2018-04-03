@@ -21,7 +21,7 @@ namespace Ladybug.Console.Commands
 
         public string Usage
         {
-            get { return "[address] [count]"; }
+            get { return "[address [count]]"; }
         }
 
         public void Execute(IDebuggerSession session, string[] arguments, Logger output)

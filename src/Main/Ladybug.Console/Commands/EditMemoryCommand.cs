@@ -15,7 +15,7 @@ namespace Ladybug.Console.Commands
 
         public string Usage
         {
-            get { return "<address> <b|w|dw> v1 [v2 v3 ...]"; }
+            get { return "<address> <b|w|dw> <v1> [<v2> <v3> ...]"; }
         }
 
         public void Execute(IDebuggerSession session, string[] arguments, Logger output)

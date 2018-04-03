@@ -11,7 +11,7 @@ namespace Ladybug.Console.Commands
 
         public string Usage
         {
-            get;
+            get { return string.Empty; }
         }
 
         public void Execute(IDebuggerSession session, string[] arguments, Logger output)

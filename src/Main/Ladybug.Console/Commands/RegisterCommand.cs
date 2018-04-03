@@ -15,7 +15,7 @@ namespace Ladybug.Console.Commands
 
         public string Usage
         {
-            get { return "[reg] [newvalue]"; }
+            get { return "[reg [newvalue]]"; }
         }
 
         private static void DumpRegister(IRegister register, Logger output)
