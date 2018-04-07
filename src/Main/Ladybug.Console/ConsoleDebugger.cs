@@ -1,31 +1,37 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
-using System.Text;
-using AsmResolver.X86;
 using Ladybug.Console.Commands;
 using Ladybug.Core;
 using Ladybug.Core.Windows;
 
 namespace Ladybug.Console
 {
-    internal class Program
+    public class ConsoleDebugger
     {
-        private static IDebuggerSession _session;
-        private static IDebuggeeThread _currentThread;
+        private IDebuggerSession _session;
+        private IDebuggeeThread _currentThread;
+        private readonly Logger _logger = new Logger();
+        private InstructionPrinter _printer = new InstructionPrinter();
+        private bool _justStepped = false;
+        private CommandExecutor _executor;
+
+        public ConsoleDebugger(IEnumerable<string> commandLineArgs)
+        {
+            CommandLineArgs = new List<string>(commandLineArgs);
+        }
         
-        private static readonly Logger _logger = new Logger();
-        private static InstructionPrinter _printer = new InstructionPrinter();
+        public IList<string> CommandLineArgs
+        {
+            get;
+        }
 
-        private static bool _justStepped = false;
-        private static CommandExecutor _executor;
-
-        public static void Main(string[] args)
+        public void Run()
         {
             PrintAbout();
             
-            if (args.Length == 0)
+            if (CommandLineArgs.Count == 0)
             {
                 _logger.WriteLine("Usage: Ladybug.Console.exe <file> [arguments]");
                 return;
@@ -46,7 +52,7 @@ namespace Ladybug.Console
             
             _session.StartProcess(new DebuggerProcessStartInfo
             {
-                CommandLine = string.Join(" ", args) 
+                CommandLine = string.Join(" ", CommandLineArgs) 
             });
 
             _executor = new CommandExecutor(_logger);
@@ -83,25 +89,25 @@ namespace Ladybug.Console
             }
         }
 
-        private static void PrintAbout()
+        private void PrintAbout()
         {
-            var consoleAppInfo = FileVersionInfo.GetVersionInfo(typeof(Program).Assembly.Location);
+            var consoleAppInfo = FileVersionInfo.GetVersionInfo(typeof(ConsoleDebugger).Assembly.Location);
             var coreAppInfo = FileVersionInfo.GetVersionInfo(typeof(IDebuggerSession).Assembly.Location);
             var backendInfo = FileVersionInfo.GetVersionInfo(typeof(DebuggerSession).Assembly.Location);
             
-            var assemblyName = typeof(Program).Assembly.GetName();
+            var assemblyName = typeof(ConsoleDebugger).Assembly.GetName();
             _logger.WriteLine(LoggerMessageType.Default,
                 $"{assemblyName.Name}, v{consoleAppInfo.FileVersion}, Core v{coreAppInfo.FileVersion}, Windows backend v{backendInfo.FileVersion}\n" +
                 $"Copyright: {consoleAppInfo.LegalCopyright}\n" + 
                 $"Repository and issue tracker: https://github.com/Washi1337/Ladybug");
         }
         
-        private static void SessionOnOutputStringSent(object sender, DebuggeeOutputStringEventArgs args)
+        private void SessionOnOutputStringSent(object sender, DebuggeeOutputStringEventArgs args)
         {
             _logger.WriteLine(LoggerMessageType.OutputString, "Debuggee sent debug message: " + args.Message);
         }
 
-        private static void SessionOnPaused(object sender, DebuggeeThreadEventArgs args)
+        private void SessionOnPaused(object sender, DebuggeeThreadEventArgs args)
         {
             _currentThread = args.Thread;
             var threadContext = _currentThread.GetThreadContext();
@@ -123,45 +129,45 @@ namespace Ladybug.Console
             _justStepped = false;
         }
 
-        private static void SessionOnStepped(object sender, DebuggeeThreadEventArgs args)
+        private void SessionOnStepped(object sender, DebuggeeThreadEventArgs args)
         {
             _justStepped = true;
         }
 
-        private static void SessionOnProcessStarted(object sender, DebuggeeProcessEventArgs args)
+        private void SessionOnProcessStarted(object sender, DebuggeeProcessEventArgs args)
         {
             var thread = args.Process.Threads.First();
             _logger.WriteLine("Process {0} created with thread {1} at address {2:X}.", args.Process.Id, thread.Id, thread.StartAddress.ToInt64());
             args.NextAction = DebuggerAction.Stop;
         }
 
-        private static void SessionOnProcessTerminated(object sender, DebuggeeProcessEventArgs args)
+        private void SessionOnProcessTerminated(object sender, DebuggeeProcessEventArgs args)
         {
             _logger.WriteLine("Process terminated. ID: " + args.Process.Id);
         }
 
-        private static void SessionOnThreadStarted(object sender, DebuggeeThreadEventArgs args)
+        private void SessionOnThreadStarted(object sender, DebuggeeThreadEventArgs args)
         {
             _logger.WriteLine("Thread created. ID: " + args.Thread.Id);
         }
 
-        private static void SessionOnThreadTerminated(object sender, DebuggeeThreadEventArgs args)
+        private void SessionOnThreadTerminated(object sender, DebuggeeThreadEventArgs args)
         {
             _logger.WriteLine("Thread terminated. ID: " + args.Thread.Id);
         }
 
-        private static void SessionOnLibraryLoaded(object sender, DebuggeeLibraryEventArgs args)
+        private void SessionOnLibraryLoaded(object sender, DebuggeeLibraryEventArgs args)
         {
             _logger.WriteLine("Loaded library " + (args.Library.Name ?? "<no name>") + " at "
                                      + args.Library.BaseOfLibrary.ToInt64().ToString("X8"));
         }
 
-        private static void SessionOnLibraryUnloaded(object sender, DebuggeeLibraryEventArgs args)
+        private void SessionOnLibraryUnloaded(object sender, DebuggeeLibraryEventArgs args)
         {
             _logger.WriteLine("Unloaded library " + (args.Library.Name ?? "<no name>") + " at "+ args.Library.BaseOfLibrary.ToInt64().ToString("X8"));
         }
 
-        private static void SessionOnExceptionOccurred(object sender, DebuggeeExceptionEventArgs args)
+        private void SessionOnExceptionOccurred(object sender, DebuggeeExceptionEventArgs args)
         {
             _logger.WriteLine(LoggerMessageType.Error, "{0} exception occurred in thread {1} with error code {2:X}. {3}.",
                 args.Exception.IsFirstChance ? "First chance" : "Last chance",
@@ -171,10 +177,11 @@ namespace Ladybug.Console
                 args.Exception.Continuable ? string.Empty : "Exception is fatal.");
         }
 
-        private static void SessionOnBreakpointHit(object sender, BreakpointEventArgs breakpointEventArgs)
+        private void SessionOnBreakpointHit(object sender, BreakpointEventArgs breakpointEventArgs)
         {
             _logger.WriteLine(LoggerMessageType.Breakpoint, "Breakpoint at address {0:X8} hit.",
                 breakpointEventArgs.Breakpoint.Address.ToInt64());
         }
     }
+    
 }

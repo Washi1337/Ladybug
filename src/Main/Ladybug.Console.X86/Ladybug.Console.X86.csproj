@@ -4,16 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{5593DB04-6BF7-4908-8379-E03EAD8B68BF}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <ProjectGuid>{95E3FA33-8D17-45E8-A88D-D7D2637D9E6C}</ProjectGuid>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Ladybug.Console</RootNamespace>
-    <AssemblyName>Ladybug.Console</AssemblyName>
+    <RootNamespace>Ladybug.Console.X86</RootNamespace>
+    <AssemblyName>Ladybug.Console.X86</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -23,7 +23,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <PlatformTarget>x86</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -38,38 +38,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Commands\BreakCommand.cs" />
-    <Compile Include="Commands\BreakpointCommand.cs" />
-    <Compile Include="Commands\BreakpointsCommand.cs" />
-    <Compile Include="Commands\CommandExecutor.cs" />
-    <Compile Include="Commands\DisassembleCommand.cs" />
-    <Compile Include="Commands\DumpMemoryCommand.cs" />
-    <Compile Include="Commands\EditMemoryCommand.cs" />
-    <Compile Include="Commands\GoCommand.cs" />
-    <Compile Include="Commands\ICommand.cs" />
-    <Compile Include="Commands\ModulesCommand.cs" />
-    <Compile Include="Commands\RegisterCommand.cs" />
-    <Compile Include="Commands\StepCommand.cs" />
-    <Compile Include="ConsoleDebugger.cs" />
-    <Compile Include="InstructionPrinter.cs" />
-    <Compile Include="Logger.cs" />
-    <Compile Include="LoggerMessageType.cs" />
-    <Compile Include="MarkupConsoleWriter.cs" />
-    <Compile Include="ProcessMemoryReader.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Core\Ladybug.Core.Windows\Ladybug.Core.Windows.csproj">
-      <Project>{D77C8B90-BFCA-42C6-B7AB-82A81F78BD41}</Project>
+      <Project>{d77c8b90-bfca-42c6-b7ab-82a81f78bd41}</Project>
       <Name>Ladybug.Core.Windows</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Core\Ladybug.Core\Ladybug.Core.csproj">
       <Project>{c4e64af5-b795-4224-8228-af043bd73b42}</Project>
       <Name>Ladybug.Core</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\Dependencies\AsmResolver\AsmResolver\AsmResolver.csproj">
-      <Project>{228b5994-1035-4eb0-a095-8d85b6ee1146}</Project>
-      <Name>AsmResolver</Name>
+    <ProjectReference Include="..\Ladybug.Console\Ladybug.Console.csproj">
+      <Project>{5593db04-6bf7-4908-8379-e03ead8b68bf}</Project>
+      <Name>Ladybug.Console</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
