@@ -1,6 +1,6 @@
 ﻿namespace Ladybug.Console.X64
 {
-    internal class Program
+    internal static class Program
     {
         public static void Main(string[] args)
         {

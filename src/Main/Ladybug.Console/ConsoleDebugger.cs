@@ -56,6 +56,8 @@ namespace Ladybug.Console
             });
 
             _executor = new CommandExecutor(_logger);
+            _executor.RegisterCommand(new KillCommand(), "kill");
+            _executor.RegisterCommand(new RestartCommand(CommandLineArgs), "restart");
             _executor.RegisterCommand(new GoCommand(), "g", "go");
             _executor.RegisterCommand(new StepCommand(), "s", "step");
             _executor.RegisterCommand(new DumpMemoryCommand(), "dm", "dump");
@@ -138,7 +140,7 @@ namespace Ladybug.Console
         {
             var thread = args.Process.Threads.First();
             _logger.WriteLine("Process {0} created with thread {1} at address {2:X}.", args.Process.Id, thread.Id, thread.StartAddress.ToInt64());
-            args.NextAction = DebuggerAction.Stop;
+//            args.NextAction = DebuggerAction.Stop;
         }
 
         private void SessionOnProcessTerminated(object sender, DebuggeeProcessEventArgs args)

@@ -12,9 +12,9 @@ namespace Ladybug.Console
 
         public ProcessMemoryReader(IDebuggeeProcess process)
         {
+            _process = process ?? throw new ArgumentNullException(nameof(process));
             StartPosition = (long) process.BaseAddress;
             Position = StartPosition;
-            _process = process ?? throw new ArgumentNullException(nameof(process));
         }
         
         public long StartPosition

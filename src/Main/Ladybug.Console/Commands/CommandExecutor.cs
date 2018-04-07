@@ -33,7 +33,7 @@ namespace Ladybug.Console.Commands
                     case 0:
                     {
                         int maxLength = _parent._prefixesByCommand.Max(x => string.Join(", ", x.Value).Length);
-                        foreach (var command in _parent._prefixesByCommand)
+                        foreach (var command in _parent._prefixesByCommand.OrderBy(x => x.Value[0]))
                         {
                             output.WriteLine(string.Join(", ", command.Value).PadRight(maxLength + 5)
                                              + command.Key.Description);

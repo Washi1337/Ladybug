@@ -40,7 +40,16 @@ namespace Ladybug.Core.Windows.Kernel32
 
             return processInfo;
         }
-        
+
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "TerminateProcess")]
+        private static extern bool __TerminateProcess(IntPtr hProcess, uint exitCode);
+
+        public static void TerminateProcess(IntPtr hProcess, uint exitCode)
+        {
+            if (!__TerminateProcess(hProcess, exitCode))
+                throw new Win32Exception();
+        }
+            
         [DllImport("kernel32.dll", EntryPoint = "WaitForDebugEvent")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool __WaitForDebugEvent(ref DEBUG_EVENT lpDebugEvent, uint dwMilliseconds);

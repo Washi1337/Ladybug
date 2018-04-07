@@ -71,6 +71,7 @@
     <Compile Include="Kernel32\Utilities.cs" />
     <Compile Include="Kernel32\XSAVE_FORMAT64.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StepProcessor.cs" />
     <Compile Include="X86ThreadContext32.cs" />
   </ItemGroup>
   <ItemGroup>

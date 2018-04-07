@@ -110,6 +110,6 @@ namespace Ladybug.Core
         /// <param name="nextAction">The action to perform.</param>
         void Continue(DebuggerAction nextAction);
 
-        void Step(DebuggerAction nextAction);
+        void Step(StepType stepType, DebuggerAction nextAction);
     }
 }

@@ -120,5 +120,7 @@ namespace Ladybug.Core
         /// <param name="offset">The starting offset inside the buffer to read from.</param>
         /// <param name="length">The amount of bytes to write.</param>
         void WriteMemory(IntPtr address, byte[] buffer, int offset, int length);
+
+        void Terminate();
     }
 }

@@ -128,6 +128,11 @@ namespace Ladybug.Core.Windows
             NativeMethods.FlushInstructionCache(_processHandle, address, written);
         }
 
+        public void Terminate()
+        {
+            NativeMethods.TerminateProcess(_processHandle, 0);
+        }
+
         internal void AddThread(DebuggeeThread thread)
         {
             _threads.Add(thread.Id, thread);

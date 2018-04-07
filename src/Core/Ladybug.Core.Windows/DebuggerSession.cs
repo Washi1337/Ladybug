@@ -25,8 +25,7 @@ namespace Ladybug.Core.Windows
 
         private readonly IDictionary<int, IDebuggeeProcess> _processes = new Dictionary<int, IDebuggeeProcess>();
         private readonly AutoResetEvent _continueEvent = new AutoResetEvent(false);
-        private readonly IList<Int3Breakpoint> _pendingBreakpoint = new List<Int3Breakpoint>();
-        private bool _isStepping = false;
+        private readonly StepProcessor _stepProcessor;
         
         private ContinueStatus _nextContinueStatus;
         private DebuggeeThread _currentThread;
@@ -34,6 +33,8 @@ namespace Ladybug.Core.Windows
         
         public DebuggerSession()
         {
+            _stepProcessor = new StepProcessor(this);
+            _stepProcessor.StepCompleted += (sender, args) => OnStepped(args);
         }
         
         ~DebuggerSession()
@@ -134,43 +135,19 @@ namespace Ladybug.Core.Windows
             return AttachToProcess(processId);
         }
 
-        private void RestoreBreakpoints()
-        {
-            foreach (var bp in _pendingBreakpoint.Where(x => x.Enabled))
-                bp.InstallInt3();
-            _pendingBreakpoint.Clear();
-        }
-
         public void Continue(DebuggerAction nextAction)
         {
             if (_isPaused)
-            {
-                _isStepping = false;
-                if (_pendingBreakpoint.Count > 0)
-                    SignalSingleInstructionStep(nextAction);
-                else
-                    SignalDebuggerLoop(nextAction);
-            }
+                _stepProcessor.Continue(_currentThread, nextAction);
         }
 
-        public void Step(DebuggerAction nextAction)
+        public void Step(StepType stepType, DebuggerAction nextAction)
         {
             if (_isPaused)
-            {
-                _isStepping = true;
-                SignalSingleInstructionStep(nextAction);
-            }
+                _stepProcessor.SignalStep(_currentThread, stepType, nextAction);
         }
 
-        private void SignalSingleInstructionStep(DebuggerAction nextAction)
-        {
-            var threadContext = _currentThread.GetThreadContext();
-            threadContext.GetRegisterByName("tf").Value = true;
-            threadContext.Flush();
-            SignalDebuggerLoop(nextAction);
-        }
-
-        private void SignalDebuggerLoop(DebuggerAction nextAction)
+        internal void SignalDebuggerLoop(DebuggerAction nextAction)
         {
             _nextContinueStatus = nextAction.ToContinueStatus();
             _continueEvent.Set();
@@ -265,7 +242,8 @@ namespace Ladybug.Core.Windows
             
             var eventArgs = new DebuggeeProcessEventArgs(process);
             OnProcessTerminated(eventArgs);
-            
+
+            _processes.Remove((int) debugEvent.dwProcessId);
             return eventArgs.NextAction;
         }
 
@@ -390,12 +368,12 @@ namespace Ladybug.Core.Windows
 
                     uint eip = (uint) thread.GetThreadContext().GetRegisterByName("eip").Value - 1;
                     var breakpoint = process.GetBreakpointByAddress((IntPtr) eip);
+                    
                     if (breakpoint != null)
                     {
                         var eventArgs = new BreakpointEventArgs(thread, breakpoint);
-                        breakpoint.HandleBreakpointEvent(eventArgs);
+                        _stepProcessor.HandleBreakpointEvent(eventArgs);
                         OnBreakpointHit(eventArgs);
-                        _pendingBreakpoint.Add(breakpoint);
                     }
 
                     break;
@@ -403,22 +381,7 @@ namespace Ladybug.Core.Windows
                 
                 case ExceptionCode.EXCEPTION_SINGLE_STEP:
                 {
-                    if (_pendingBreakpoint.Count > 0)
-                    {
-                        RestoreBreakpoints();
-                        if (!_isStepping)
-                        {
-                            nextAction = DebuggerAction.Continue;
-                            break;
-                        }
-                    }
-                    
-                    var eventArgs = new DebuggeeThreadEventArgs(thread)
-                    {
-                        NextAction = DebuggerAction.Stop
-                    };
-                    OnStepped(eventArgs);
-                    nextAction = eventArgs.NextAction;
+                    nextAction = _stepProcessor.HandleStepEvent(thread);
                     break;
                 }
 
