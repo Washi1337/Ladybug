@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Linq;
 using AsmResolver;
-using Ladybug.Core;
-using Ladybug.Core.Windows;
 
-namespace Ladybug.Console
+namespace Ladybug.Core.Windows
 {
     public class ProcessMemoryReader : IBinaryStreamReader
     {

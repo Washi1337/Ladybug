@@ -7,7 +7,7 @@ namespace Ladybug.Core.Windows
     {
         private readonly IntPtr _threadHandle;
 
-        internal DebuggeeThread(IDebuggeeProcess process, IntPtr threadHandle, int id, IntPtr startAddress)
+        internal DebuggeeThread(DebuggeeProcess process, IntPtr threadHandle, int id, IntPtr startAddress)
         {
             Process = process ?? throw new ArgumentNullException(nameof(process));
             _threadHandle = threadHandle;
@@ -15,9 +15,14 @@ namespace Ladybug.Core.Windows
             StartAddress = startAddress;
         }
         
-        public IDebuggeeProcess Process
+        public DebuggeeProcess Process
         {
             get;
+        }
+
+        IDebuggeeProcess IDebuggeeThread.Process
+        {
+            get { return Process; }
         }
 
         public int Id

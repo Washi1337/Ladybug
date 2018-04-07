@@ -59,7 +59,8 @@ namespace Ladybug.Console
             _executor.RegisterCommand(new KillCommand(), "kill");
             _executor.RegisterCommand(new RestartCommand(CommandLineArgs), "restart");
             _executor.RegisterCommand(new GoCommand(), "g", "go");
-            _executor.RegisterCommand(new StepCommand(), "s", "step");
+            _executor.RegisterCommand(new StepInCommand(), "si", "stepin");
+            _executor.RegisterCommand(new StepOverCommand(), "so", "stepover");
             _executor.RegisterCommand(new DumpMemoryCommand(), "dm", "dump");
             _executor.RegisterCommand(new EditMemoryCommand(), "wm", "write");
             _executor.RegisterCommand(new ModulesCommand(), "m", "modules");

@@ -4,6 +4,7 @@ using System.Linq;
 using AsmResolver;
 using AsmResolver.X86;
 using Ladybug.Core;
+using Ladybug.Core.Windows;
 
 namespace Ladybug.Console.Commands
 {

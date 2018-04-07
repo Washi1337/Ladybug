@@ -2,11 +2,11 @@
 
 namespace Ladybug.Console.Commands
 {
-    public class StepCommand : ICommand
+    public class StepOverCommand : ICommand
     {
         public string Description
         {
-            get { return "Executes the instruction at the instruction pointer."; }
+            get { return "Executes until the next instruction line."; }
         }
 
         public string Usage
@@ -16,7 +16,7 @@ namespace Ladybug.Console.Commands
 
         public void Execute(IDebuggerSession session, string[] arguments, Logger output)
         {
-            session.Step(StepType.StepIn, DebuggerAction.Continue);
+            session.Step(StepType.StepOver, DebuggerAction.Continue);
         }
     }
 }

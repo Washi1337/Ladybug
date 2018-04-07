@@ -51,12 +51,12 @@
     <Compile Include="Commands\ModulesCommand.cs" />
     <Compile Include="Commands\RegisterCommand.cs" />
     <Compile Include="Commands\RestartCommand.cs" />
-    <Compile Include="Commands\StepCommand.cs" />
+    <Compile Include="Commands\StepInCommand.cs" />
+    <Compile Include="Commands\StepOverCommand.cs" />
     <Compile Include="ConsoleDebugger.cs" />
     <Compile Include="InstructionPrinter.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="LoggerMessageType.cs" />
-    <Compile Include="ProcessMemoryReader.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

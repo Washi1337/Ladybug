@@ -25,7 +25,7 @@ namespace Ladybug.Core.Windows
 
         private readonly IDictionary<int, IDebuggeeProcess> _processes = new Dictionary<int, IDebuggeeProcess>();
         private readonly AutoResetEvent _continueEvent = new AutoResetEvent(false);
-        private readonly StepProcessor _stepProcessor;
+        private readonly ExecutionController _executionController;
         
         private ContinueStatus _nextContinueStatus;
         private DebuggeeThread _currentThread;
@@ -33,8 +33,9 @@ namespace Ladybug.Core.Windows
         
         public DebuggerSession()
         {
-            _stepProcessor = new StepProcessor(this);
-            _stepProcessor.StepCompleted += (sender, args) => OnStepped(args);
+            _executionController = new ExecutionController(this);
+            _executionController.StepCompleted += (sender, args) => OnStepped(args);
+            _executionController.BreakpointHit += (sender, args) => OnBreakpointHit(args);
         }
         
         ~DebuggerSession()
@@ -138,13 +139,13 @@ namespace Ladybug.Core.Windows
         public void Continue(DebuggerAction nextAction)
         {
             if (_isPaused)
-                _stepProcessor.Continue(_currentThread, nextAction);
+                _executionController.Continue(_currentThread, nextAction);
         }
 
         public void Step(StepType stepType, DebuggerAction nextAction)
         {
             if (_isPaused)
-                _stepProcessor.SignalStep(_currentThread, stepType, nextAction);
+                _executionController.SignalStep(_currentThread, stepType, nextAction);
         }
 
         internal void SignalDebuggerLoop(DebuggerAction nextAction)
@@ -362,26 +363,13 @@ namespace Ladybug.Core.Windows
             {
                 case ExceptionCode.EXCEPTION_BREAKPOINT:
                 {
-                    // If signalled by an int3, the exception was thrown after the execution of int3.
-                    // Find corresponding breakpoint and restore the instruction pointer so that it seems
-                    // it has paused execution before the int3.
-
-                    uint eip = (uint) thread.GetThreadContext().GetRegisterByName("eip").Value - 1;
-                    var breakpoint = process.GetBreakpointByAddress((IntPtr) eip);
-                    
-                    if (breakpoint != null)
-                    {
-                        var eventArgs = new BreakpointEventArgs(thread, breakpoint);
-                        _stepProcessor.HandleBreakpointEvent(eventArgs);
-                        OnBreakpointHit(eventArgs);
-                    }
-
+                    nextAction = _executionController.HandleBreakpointEvent(debugEvent);
                     break;
                 }
                 
                 case ExceptionCode.EXCEPTION_SINGLE_STEP:
                 {
-                    nextAction = _stepProcessor.HandleStepEvent(thread);
+                    nextAction = _executionController.HandleStepEvent(debugEvent);
                     break;
                 }
 
