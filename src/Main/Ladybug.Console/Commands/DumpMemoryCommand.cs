@@ -88,7 +88,7 @@ namespace Ladybug.Console.Commands
             ulong address = ulong.Parse(arguments[0], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
 
             var size = X86OperandSize.Byte;
-            if (arguments.Length > 2)
+            if (arguments.Length > 1)
             {
                 switch (arguments[1].ToLowerInvariant())
                 {

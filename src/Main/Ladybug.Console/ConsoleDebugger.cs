@@ -58,16 +58,16 @@ namespace Ladybug.Console
             _executor = new CommandExecutor(_logger);
             _executor.RegisterCommand(new KillCommand(), "kill");
             _executor.RegisterCommand(new RestartCommand(CommandLineArgs), "restart");
-            _executor.RegisterCommand(new GoCommand(), "g", "go");
-            _executor.RegisterCommand(new StepInCommand(), "si", "stepin");
-            _executor.RegisterCommand(new StepOverCommand(), "so", "stepover");
-            _executor.RegisterCommand(new DumpMemoryCommand(), "dm", "dump");
-            _executor.RegisterCommand(new EditMemoryCommand(), "wm", "write");
-            _executor.RegisterCommand(new ModulesCommand(), "m", "modules");
-            _executor.RegisterCommand(new BreakpointCommand(), "bp", "breakpoint");
-            _executor.RegisterCommand(new BreakpointsCommand(), "bps", "breakpoints");
-            _executor.RegisterCommand(new DisassembleCommand(), "d", "disassemble");
-            _executor.RegisterCommand(new RegisterCommand(), "r", "registers");
+            _executor.RegisterCommand(new GoCommand(), "go", "g");
+            _executor.RegisterCommand(new StepInCommand(), "stepin", "si");
+            _executor.RegisterCommand(new StepOverCommand(), "stepover", "so");
+            _executor.RegisterCommand(new DumpMemoryCommand(), "dump", "dm");
+            _executor.RegisterCommand(new EditMemoryCommand(), "write", "wm");
+            _executor.RegisterCommand(new ModulesCommand(), "modules", "m");
+            _executor.RegisterCommand(new BreakpointCommand(), "breakpoint", "bp");
+            _executor.RegisterCommand(new BreakpointsCommand(), "breakpoints", "bps");
+            _executor.RegisterCommand(new DisassembleCommand(), "disassemble", "d");
+            _executor.RegisterCommand(new RegisterCommand(), "registers", "r");
             _executor.RegisterCommand(new BreakCommand(), "break");
             
             bool exit = false;

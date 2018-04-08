@@ -1,4 +1,5 @@
-﻿using Ladybug.Core;
+﻿using System;
+using Ladybug.Core;
 
 namespace Ladybug.Console.Commands
 {
@@ -11,11 +12,19 @@ namespace Ladybug.Console.Commands
 
         public string Usage
         {
-            get { return string.Empty; }
+            get { return "[pass]"; }
         }
 
         public void Execute(IDebuggerSession session, string[] arguments, Logger output)
         {
+            if (arguments.Length > 0)
+            {
+                if (arguments[0] != "pass")
+                    throw new ArgumentException("Invalid switch " + arguments[0]);
+                
+                session.Step(StepType.StepIn, DebuggerAction.ContinueWithException);
+            }
+            
             session.Step(StepType.StepIn, DebuggerAction.Continue);
         }
     }
