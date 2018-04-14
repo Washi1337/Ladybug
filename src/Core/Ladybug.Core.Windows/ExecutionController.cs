@@ -59,7 +59,6 @@ namespace Ladybug.Core.Windows
             private set;
         }
 
-
         public void Continue(DebuggeeThread thread, DebuggerAction nextAction)
         {
             IsContinuing = true;
@@ -102,7 +101,7 @@ namespace Ladybug.Core.Windows
 
         private void SignalStepOver(DebuggeeThread thread, DebuggerAction nextAction)
         {
-            // Stepping over means have to step one instruction, but skip call instructions.
+            // Stepping over means step one instruction, but skip call instructions.
             // Therefore, if the current instruction is a call, we set a temporary breakpoint
             // to the next instruction and continue execution, otherwise we perform a normal step.
             

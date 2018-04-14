@@ -68,6 +68,14 @@ namespace Ladybug.Console
                 color = ConsoleColor.DarkGray;
 
             System.Console.ForegroundColor = color;
+            
+            foreach (var prefix in instruction.Prefixes)
+            {
+                string formatted = _formatter.FormatPrefix(prefix);
+                if (!string.IsNullOrEmpty(formatted)) 
+                    System.Console.Write(formatted + ' ');    
+            }
+            
             System.Console.Write(_formatter.FormatMnemonic(instruction.Mnemonic));
 
             if (instruction.Operand1 != null)

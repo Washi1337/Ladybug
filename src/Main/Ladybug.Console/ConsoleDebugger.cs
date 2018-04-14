@@ -69,6 +69,7 @@ namespace Ladybug.Console
             _executor.RegisterCommand(new DisassembleCommand(), "disassemble", "d");
             _executor.RegisterCommand(new RegisterCommand(), "registers", "r");
             _executor.RegisterCommand(new BreakCommand(), "break");
+            _executor.RegisterCommand(new ThreadsCommand(), "threads");
             
             bool exit = false;
             while (!exit)

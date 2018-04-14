@@ -53,6 +53,7 @@
     <Compile Include="Commands\RestartCommand.cs" />
     <Compile Include="Commands\StepInCommand.cs" />
     <Compile Include="Commands\StepOverCommand.cs" />
+    <Compile Include="Commands\ThreadsCommand.cs" />
     <Compile Include="ConsoleDebugger.cs" />
     <Compile Include="InstructionPrinter.cs" />
     <Compile Include="Logger.cs" />
