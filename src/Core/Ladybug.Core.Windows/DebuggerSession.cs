@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Ladybug.Core.Windows.Kernel32;
@@ -358,35 +359,40 @@ namespace Ladybug.Core.Windows
             var thread = process.GetThreadById((int) debugEvent.dwThreadId);
 
             var nextAction = DebuggerAction.Stop;
-            
+            bool handled = false;
             switch (info.ExceptionRecord.ExceptionCode)
             {
                 case ExceptionCode.EXCEPTION_BREAKPOINT:
                 {
-                    nextAction = _executionController.HandleBreakpointEvent(debugEvent);
+                    handled = _executionController.HandleBreakpointEvent(debugEvent, out nextAction);
                     break;
                 }
                 
                 case ExceptionCode.EXCEPTION_SINGLE_STEP:
                 {
-                    nextAction = _executionController.HandleStepEvent(debugEvent);
+                    handled = _executionController.HandleStepEvent(debugEvent, out nextAction);
                     break;
                 }
 
-                default:
+                case ExceptionCode.EXCEPTION_GUARD_PAGE:
                 {
-                    // Forward exception to debugger.
-                    var eventArgs = new DebuggeeExceptionEventArgs(thread,
-                        new DebuggeeException((uint) info.ExceptionRecord.ExceptionCode,
-                            info.ExceptionRecord.ExceptionCode.ToString(),
-                            info.dwFirstChance == 1,
-                            info.ExceptionRecord.ExceptionFlags == 0));
-                    OnExceptionOccurred(eventArgs);
-                    nextAction = eventArgs.NextAction;
+                    handled = _executionController.HandlePageGuardViolationEvent(debugEvent, out nextAction);
                     break;
                 }
             }
-            
+
+            if (!handled)
+            {
+                // Forward exception to debugger.
+                var eventArgs = new DebuggeeExceptionEventArgs(thread,
+                    new DebuggeeException((uint) info.ExceptionRecord.ExceptionCode,
+                        info.ExceptionRecord.ExceptionCode.ToString(),
+                        info.dwFirstChance == 1,
+                        info.ExceptionRecord.ExceptionFlags == 0));
+                OnExceptionOccurred(eventArgs);
+                nextAction = eventArgs.NextAction;
+            }
+
             return nextAction;
         }
 

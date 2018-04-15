@@ -110,6 +110,11 @@ namespace Ladybug.Core
         /// <param name="nextAction">The action to perform.</param>
         void Continue(DebuggerAction nextAction);
 
+        /// <summary>
+        /// Performs a step in the paused debuggee process.
+        /// </summary>
+        /// <param name="stepType">The type of step to take.</param>
+        /// <param name="nextAction">The action to perform.</param>
         void Step(StepType stepType, DebuggerAction nextAction);
     }
 }

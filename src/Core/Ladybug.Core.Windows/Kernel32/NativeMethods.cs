@@ -50,7 +50,7 @@ namespace Ladybug.Core.Windows.Kernel32
                 throw new Win32Exception();
         }
             
-        [DllImport("kernel32.dll", EntryPoint = "WaitForDebugEvent")]
+        [DllImport("kernel32.dll", SetLastError = true,  EntryPoint = "WaitForDebugEvent")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool __WaitForDebugEvent(ref DEBUG_EVENT lpDebugEvent, uint dwMilliseconds);
 
@@ -62,7 +62,7 @@ namespace Ladybug.Core.Windows.Kernel32
             return debugEvent;
         }
         
-        [DllImport("kernel32.dll", EntryPoint = "ContinueDebugEvent")]
+        [DllImport("kernel32.dll", SetLastError = true,  EntryPoint = "ContinueDebugEvent")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool __ContinueDebugEvent(uint dwProcessId, uint dwThreadId, ContinueStatus dwContinueStatus);
 
@@ -72,7 +72,7 @@ namespace Ladybug.Core.Windows.Kernel32
                 throw new Win32Exception();
         }
         
-        [DllImport("kernel32.dll", EntryPoint = "DebugBreakProcess")]
+        [DllImport("kernel32.dll", SetLastError = true,  EntryPoint = "DebugBreakProcess")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool __DebugBreakProcess(IntPtr hProcess);
 
@@ -120,12 +120,23 @@ namespace Ladybug.Core.Windows.Kernel32
                 throw new Win32Exception();
         }
         
-        [DllImport("kernel32.dll", EntryPoint = "FlushInstructionCache")]
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "FlushInstructionCache")]
         private static extern bool __FlushInstructionCache(IntPtr hProcess, IntPtr lpBaseAddress, IntPtr dwSize);
 
         public static void FlushInstructionCache(IntPtr hProcess, IntPtr lpBaseAddress, IntPtr dwSize)
         {
             if (!__FlushInstructionCache(hProcess, lpBaseAddress, dwSize))
+                throw new Win32Exception();
+        }
+        
+        [DllImport("kernel32.dll", SetLastError = true, EntryPoint = "VirtualProtectEx")]
+        private static extern bool __VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress,
+            UIntPtr dwSize, MemoryProtection flNewProtect, out MemoryProtection lpflOldProtect);
+
+        public static void VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress,
+            UIntPtr dwSize, MemoryProtection flNewProtect, out MemoryProtection lpflOldProtect)
+        {
+            if (!__VirtualProtectEx(hProcess, lpAddress, dwSize, flNewProtect, out lpflOldProtect))
                 throw new Win32Exception();
         }
         

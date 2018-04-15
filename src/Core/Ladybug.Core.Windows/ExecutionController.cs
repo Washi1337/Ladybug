@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using AsmResolver;
 using AsmResolver.X86;
 using Ladybug.Core.Windows.Kernel32.Debugging;
 
@@ -26,8 +25,15 @@ namespace Ladybug.Core.Windows
         public event EventHandler<BreakpointEventArgs> BreakpointHit; 
         
         private readonly DebuggerSession _session;
-        private readonly IList<Int3Breakpoint> _breakpointsToRestore = new List<Int3Breakpoint>();
         private readonly IDictionary<IDebuggeeProcess, DisassemblerInfo> _disassemblers = new Dictionary<IDebuggeeProcess, DisassemblerInfo>();
+        private readonly ISet<Int3Breakpoint> _breakpointsToRestore = new HashSet<Int3Breakpoint>();
+        private readonly ISet<PageGuard> _pageGuardsToRestore = new HashSet<PageGuard>();
+            
+        
+        private bool _isStepping;
+        private bool _isContinuing;
+        private bool _isRestoringFromGuard;
+        
         private DebuggerAction _continueAction;
         private Int3Breakpoint _stepOverBreakpoint;
 
@@ -42,26 +48,14 @@ namespace Ladybug.Core.Windows
                 _disassemblers.Remove(args.Process);
         }
 
-        public bool HasBreakpointsToRestore
+        private bool HasBreakpointsToRestore
         {
-            get { return _breakpointsToRestore.Count > 0; }
-        }
-
-        public bool IsStepping
-        {
-            get;
-            private set;
-        }
-
-        public bool IsContinuing
-        {
-            get;
-            private set;
+            get { return _breakpointsToRestore.Count > 0 || _pageGuardsToRestore.Count > 0; }
         }
 
         public void Continue(DebuggeeThread thread, DebuggerAction nextAction)
         {
-            IsContinuing = true;
+            _isContinuing = true;
             _continueAction = nextAction;
 
             if (HasBreakpointsToRestore)
@@ -72,7 +66,7 @@ namespace Ladybug.Core.Windows
 
         public void SignalStep(DebuggeeThread thread, StepType stepType, DebuggerAction nextAction)
         {
-            IsStepping = true;
+            _isStepping = true;
             switch (stepType)
             {
                 case StepType.StepIn:
@@ -92,10 +86,8 @@ namespace Ladybug.Core.Windows
         private void SignalStepIn(DebuggeeThread thread, DebuggerAction nextAction)
         {
             // Set trap flag to signal an EXCEPTION_SINGLE_STEP event after next instruction.
-            
-            var threadContext = thread.GetThreadContext();
-            threadContext.GetRegisterByName("tf").Value = true;
-            threadContext.Flush();
+
+            PrepareContextForSingleStep(thread);
             _session.SignalDebuggerLoop(nextAction);
         }
 
@@ -130,7 +122,14 @@ namespace Ladybug.Core.Windows
             throw new NotSupportedException();
         }
 
-        public DebuggerAction HandleBreakpointEvent(DEBUG_EVENT debugEvent)
+        private static void PrepareContextForSingleStep(DebuggeeThread thread)
+        {
+            var threadContext = thread.GetThreadContext();
+            threadContext.GetRegisterByName("tf").Value = true;
+            threadContext.Flush();
+        }
+
+        public bool HandleBreakpointEvent(DEBUG_EVENT debugEvent, out DebuggerAction nextAction)
         {
             // If signalled by an int3, the exception was thrown after the execution of int3.
             // Find corresponding breakpoint and restore the instruction pointer so that it seems
@@ -140,14 +139,15 @@ namespace Ladybug.Core.Windows
             var thread = process.GetThreadById((int) debugEvent.dwThreadId);
             
             uint eip = (uint) thread.GetThreadContext().GetRegisterByName("eip").Value - 1;
-            var breakpoint = process.GetBreakpointByAddress((IntPtr) eip);
+            var breakpoint = process.GetSoftwareBreakpointByAddress((IntPtr) eip);
 
             // Check if breakpoint originated from a step-over action.
             if (breakpoint == null && _stepOverBreakpoint?.Address == (IntPtr) eip)
             {
                 _stepOverBreakpoint.HandleBreakpointEvent(new BreakpointEventArgs(thread, _stepOverBreakpoint));
                 _stepOverBreakpoint = null;
-                return FinalizeStep(thread);
+                nextAction = FinalizeStep(thread);
+                return true;
             }
             
             if (breakpoint != null)
@@ -160,33 +160,97 @@ namespace Ladybug.Core.Windows
                 
                 breakpoint.HandleBreakpointEvent(eventArgs);
                 OnBreakpointHit(eventArgs);
-                return eventArgs.NextAction;
+                nextAction = eventArgs.NextAction;
+                return true;
             }
 
-            return DebuggerAction.Stop;
+            nextAction = DebuggerAction.ContinueWithException;
+            return false;
         }
 
-        public DebuggerAction HandleStepEvent(DEBUG_EVENT debugEvent)
+        public bool HandleStepEvent(DEBUG_EVENT debugEvent, out DebuggerAction nextAction)
         {
             var thread = _session.GetProcessById((int) debugEvent.dwProcessId)
                 .GetThreadById((int) debugEvent.dwThreadId);
             
-            return FinalizeStep(thread);
+            nextAction = FinalizeStep(thread);
+            return true;
         }
+
+        public bool HandlePageGuardViolationEvent(DEBUG_EVENT debugEvent, out DebuggerAction nextAction)
+        {
+            // Memory breakpoints are implemented using page guards. We need to check if the page guard
+            // violation originated from a breakpoint or not, and pause or continue execution when appropriate.
+            
+            const int ExceptionInformationReadWrite = 0;
+            const int ExceptionInformationAddress = 1;
         
+            var info = debugEvent.InterpretDebugInfoAs<EXCEPTION_DEBUG_INFO>();
+            var process = _session.GetProcessById((int) debugEvent.dwProcessId);
+            var thread = process.GetThreadById((int) debugEvent.dwThreadId);
+
+            if (info.ExceptionRecord.NumberParameters >= 2)
+            {
+                bool isWrite = info.ExceptionRecord.ExceptionInformation[ExceptionInformationReadWrite] == 1;
+                IntPtr address = (IntPtr) info.ExceptionRecord.ExceptionInformation[ExceptionInformationAddress];
+
+                var pageGuard = process.GetContainingPageGuard(address);
+                if (pageGuard != null)
+                {
+                    // Restore page guard after continuing.
+                    _pageGuardsToRestore.Add(pageGuard);
+
+                    if (pageGuard.Breakpoints.TryGetValue(address, out var breakpoint)
+                        && (breakpoint.BreakOnRead == !isWrite || breakpoint.BreakOnWrite == isWrite))
+                    {
+                        // Violation originated from a breakpoint.
+                        var eventArgs = new BreakpointEventArgs(thread, breakpoint)
+                        {
+                            NextAction = DebuggerAction.Stop
+                        };
+
+                        breakpoint.HandleBreakpointEvent(eventArgs);
+                        OnBreakpointHit(eventArgs);
+                        nextAction = eventArgs.NextAction;
+                    }
+                    else
+                    {
+                        // Violation did not originate from a breakpoint.
+                        _isRestoringFromGuard = true;
+                        PrepareContextForSingleStep(thread);
+                        nextAction = DebuggerAction.Continue;
+                    }
+
+                    return true;
+                }
+            }
+            
+
+            nextAction = DebuggerAction.ContinueWithException;            
+            return false;
+        }
+
         private void RestoreBreakpoints()
         {
             foreach (var bp in _breakpointsToRestore.Where(x => x.Enabled))
                 bp.InstallInt3();
             _breakpointsToRestore.Clear();
+
+            foreach (var pg in _pageGuardsToRestore.Where(x => x.Enabled))
+                pg.InstallPageGuard();
+            _pageGuardsToRestore.Clear();
         }
 
-        private DebuggerAction FinalizeStep(IDebuggeeThread thread)
+        private DebuggerAction FinalizeStep(DebuggeeThread thread)
         {
             RestoreBreakpoints();
-            IsStepping = false;
+            
+            _isStepping = false;
 
-            if (IsContinuing)
+            if (_isRestoringFromGuard)
+                return FinalizeRestoreFromGuard(thread);
+            
+            if (_isContinuing)
                 return FinalizeContinue(thread);
 
             var eventArgs = new DebuggeeThreadEventArgs(thread)
@@ -197,9 +261,15 @@ namespace Ladybug.Core.Windows
             return eventArgs.NextAction;
         }
 
+        private DebuggerAction FinalizeRestoreFromGuard(DebuggeeThread thread)
+        {
+            _isRestoringFromGuard = false;
+            return DebuggerAction.Continue;
+        }
+
         private DebuggerAction FinalizeContinue(IDebuggeeThread thread)
         {
-            IsContinuing = false;
+            _isContinuing = false;
             
             var eventArgs = new DebuggeeThreadEventArgs(thread)
             {

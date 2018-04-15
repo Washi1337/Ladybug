@@ -48,6 +48,7 @@
     <Compile Include="Commands\GoCommand.cs" />
     <Compile Include="Commands\ICommand.cs" />
     <Compile Include="Commands\KillCommand.cs" />
+    <Compile Include="Commands\MemoryBreakpointCommand.cs" />
     <Compile Include="Commands\ModulesCommand.cs" />
     <Compile Include="Commands\RegisterCommand.cs" />
     <Compile Include="Commands\RestartCommand.cs" />

@@ -45,7 +45,7 @@ namespace Ladybug.Console.Commands
             for (int i = 0; i < count; i++)
             {
                 var instruction = _disassembler.ReadNextInstruction();
-                _printer.PrintInstruction(instruction, process.GetBreakpointByAddress((IntPtr) instruction.Offset));
+                _printer.PrintInstruction(instruction, process.GetSoftwareBreakpointByAddress((IntPtr) instruction.Offset));
             }
         }
     }

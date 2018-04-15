@@ -5,11 +5,11 @@ using Ladybug.Core;
 
 namespace Ladybug.Console.Commands
 {
-    public class BreakpointCommand : ICommand
+    public class MemoryBreakpointCommand : ICommand
     {
         public string Description
         {
-            get { return "Sets or changes the behaviour of software breakpoints in the process."; }
+            get { return "Sets or changes the behaviour of memory breakpoints in the process."; }
         }
 
         public string Usage
@@ -28,22 +28,22 @@ namespace Ladybug.Console.Commands
             switch (arguments[0].ToLowerInvariant())
             {
                 case "set":
-                    debuggeeProcess.SetSoftwareBreakpoint((IntPtr) address);
+                    var breakpoint = debuggeeProcess.SetMemoryBreakpoint((IntPtr) address);
+                    breakpoint.BreakOnRead = breakpoint.BreakOnWrite = true;
                     break;
                 case "remove":
-                    debuggeeProcess.RemoveSoftwareBreakpoint(
-                        debuggeeProcess.GetSoftwareBreakpointByAddress((IntPtr) address));
+//                    debuggeeProcess.RemoveMemoryBreakpoint(
+//                        debuggeeProcess.GetMemoryBreakpointByAddress((IntPtr) address));
                     break;
                 case "enable":
-                    debuggeeProcess.GetSoftwareBreakpointByAddress((IntPtr) address).Enabled = true;
+//                    debuggeeProcess.GetSoftwareBreakpointByAddress((IntPtr) address).Enabled = true;
                     break;
                 case "disable":
-                    debuggeeProcess.GetSoftwareBreakpointByAddress((IntPtr) address).Enabled = false;
+//                    debuggeeProcess.GetSoftwareBreakpointByAddress((IntPtr) address).Enabled = false;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException("Invalid switch " + arguments[1]);
             }
-
 
         }
     }

@@ -65,6 +65,7 @@ namespace Ladybug.Console
             _executor.RegisterCommand(new EditMemoryCommand(), "write", "wm");
             _executor.RegisterCommand(new ModulesCommand(), "modules", "m");
             _executor.RegisterCommand(new BreakpointCommand(), "breakpoint", "bp");
+            _executor.RegisterCommand(new MemoryBreakpointCommand(), "memorybreakpoint", "bm");
             _executor.RegisterCommand(new BreakpointsCommand(), "breakpoints", "bps");
             _executor.RegisterCommand(new DisassembleCommand(), "disassemble", "d");
             _executor.RegisterCommand(new RegisterCommand(), "registers", "r");
@@ -181,10 +182,17 @@ namespace Ladybug.Console
                 args.Exception.Continuable ? string.Empty : "Exception is fatal.");
         }
 
-        private void SessionOnBreakpointHit(object sender, BreakpointEventArgs breakpointEventArgs)
+        private void SessionOnBreakpointHit(object sender, BreakpointEventArgs args)
         {
-            _logger.WriteLine(LoggerMessageType.Breakpoint, "Breakpoint at address {0:X8} hit.",
-                breakpointEventArgs.Breakpoint.Address.ToInt64());
+            string breakpointType = null;
+            if (args.Breakpoint is ISoftwareBreakpoint)
+                breakpointType = "Software";
+            else if (args.Breakpoint is IMemoryBreakpoint)
+                breakpointType = "Memory";
+            
+            _logger.WriteLine(LoggerMessageType.Breakpoint, "{0} breakpoint at address {1:X8} hit.",
+                breakpointType,
+                args.Breakpoint.Address.ToInt64());
         }
     }
     

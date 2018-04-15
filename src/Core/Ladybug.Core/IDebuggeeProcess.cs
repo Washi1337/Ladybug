@@ -81,27 +81,52 @@ namespace Ladybug.Core
         /// <summary>
         /// Gets a collection of user-defined breakpoints set in the code of the process.
         /// </summary>
-        IEnumerable<IBreakpoint> GetSoftwareBreakpoints();
+        IEnumerable<ISoftwareBreakpoint> GetSoftwareBreakpoints();
 
         /// <summary>
-        /// Sets a new breakpoint at the given code address.
+        /// Sets a new software breakpoint at the given code address.
         /// </summary>
         /// <param name="address">The address to set the breakpoint at.</param>
         /// <returns>The breakpoint that was set.</returns>
-        IBreakpoint SetSoftwareBreakpoint(IntPtr address);
+        ISoftwareBreakpoint SetSoftwareBreakpoint(IntPtr address);
 
         /// <summary>
-        /// Removes a breakpoint from the process.
+        /// Removes a software breakpoint from the process.
         /// </summary>
         /// <param name="breakpoint">The breakpoint to remove.</param>
-        void RemoveSoftwareBreakpoint(IBreakpoint breakpoint);
+        void RemoveSoftwareBreakpoint(ISoftwareBreakpoint breakpoint);
 
         /// <summary>
-        /// Gets a user-defined breakpoint set in the process by its address.
+        /// Gets a user-defined software breakpoint set in the process by its address.
         /// </summary>
         /// <param name="address">The address of the breakpoint.</param>
         /// <returns>The breakpoint at the given address, or <c>null</c> if none was found.</returns>
-        IBreakpoint GetBreakpointByAddress(IntPtr address);
+        ISoftwareBreakpoint GetSoftwareBreakpointByAddress(IntPtr address);
+
+        /// <summary>
+        /// Gets a collection of user-defined breakpoints set in the memory of the process.
+        /// </summary>
+        IEnumerable<IMemoryBreakpoint> GetMemoryBreakpoints();
+        
+        /// <summary>
+        /// Sets a new memory breakpoint at the given code address.
+        /// </summary>
+        /// <param name="address">The address to set the breakpoint at.</param>
+        /// <returns>The breakpoint that was set.</returns>
+        IMemoryBreakpoint SetMemoryBreakpoint(IntPtr address);
+
+        /// <summary>
+        /// Removes a memory breakpoint from the process.
+        /// </summary>
+        /// <param name="breakpoint">The breakpoint to remove.</param>
+        void RemoveMemoryBreakpoint(IMemoryBreakpoint breakpoint);
+        
+        /// <summary>
+        /// Gets a user-defined memory breakpoint set in the process by its address.
+        /// </summary>
+        /// <param name="address">The address of the breakpoint.</param>
+        /// <returns>The breakpoint at the given address, or <c>null</c> if none was found.</returns>
+        IMemoryBreakpoint GetMemoryBreakpointByAddress(IntPtr address);
         
         /// <summary>
         /// Reads raw memory from the target process.
@@ -121,6 +146,9 @@ namespace Ladybug.Core
         /// <param name="length">The amount of bytes to write.</param>
         void WriteMemory(IntPtr address, byte[] buffer, int offset, int length);
 
+        /// <summary>
+        /// Terminates the process.
+        /// </summary>
         void Terminate();
     }
 }

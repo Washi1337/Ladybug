@@ -1,4 +1,5 @@
-﻿using Ladybug.Core;
+﻿using System.Linq;
+using Ladybug.Core;
 
 namespace Ladybug.Console.Commands
 {
@@ -16,9 +17,17 @@ namespace Ladybug.Console.Commands
 
         public void Execute(IDebuggerSession session, string[] arguments, Logger output)
         {
-            foreach (var breakpoint in session.GetAllBreakpoints())
+            output.WriteLine("Software Breakpoints:");
+            foreach (var breakpoint in session.GetProcesses().SelectMany(x => x.GetSoftwareBreakpoints()))
             {
-                output.WriteLine("{0:X8} : {1}", breakpoint.Address.ToInt64(),
+                output.WriteLine("- {0:X8} : {1}", breakpoint.Address.ToInt64(),
+                    breakpoint.Enabled ? "Enabled" : "Disabled");
+            }
+            
+            output.WriteLine("Memory Breakpoints:");
+            foreach (var breakpoint in session.GetProcesses().SelectMany(x => x.GetMemoryBreakpoints()))
+            {
+                output.WriteLine("- {0:X8} : {1}", breakpoint.Address.ToInt64(),
                     breakpoint.Enabled ? "Enabled" : "Disabled");
             }
         }

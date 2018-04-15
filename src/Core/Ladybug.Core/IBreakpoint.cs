@@ -29,4 +29,23 @@ namespace Ladybug.Core
             get;
         }
     }
+
+    public interface ISoftwareBreakpoint : IBreakpoint
+    {
+    }
+
+    public interface IMemoryBreakpoint : IBreakpoint
+    {
+        bool BreakOnRead
+        {
+            get;
+            set;
+        }
+        
+        bool BreakOnWrite
+        {
+            get;
+            set;
+        }
+    }
 }

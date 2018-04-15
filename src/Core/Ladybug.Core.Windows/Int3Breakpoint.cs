@@ -2,7 +2,7 @@
 
 namespace Ladybug.Core.Windows
 {
-    public class Int3Breakpoint : IBreakpoint
+    public class Int3Breakpoint : ISoftwareBreakpoint
     {
         public event EventHandler<BreakpointEventArgs> BreakpointHit;
         private readonly DebuggeeProcess _process;
@@ -12,7 +12,7 @@ namespace Ladybug.Core.Windows
         
         private bool _enabled;
         
-        public Int3Breakpoint(DebuggeeProcess process, IntPtr address, bool enabled)
+        internal Int3Breakpoint(DebuggeeProcess process, IntPtr address, bool enabled)
         {
             _process = process;
             Address = address;
