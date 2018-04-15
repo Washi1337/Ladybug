@@ -8,15 +8,17 @@ The Ladybug project is written in C# and consists of reusable core libraries tha
 
 ## Features
 
-- Launch any application in the debugger.
+- Launch any x86 application in the debugger.
 - Break execution at any given time.
 - View and edit x86 register values.
 - Disassemble x86 assembly code with instruction highlighting.
-- Set breakpoints in the x86 code.
+- Set breakpoints in the x86 code and memory.
 - Step through the x86 code.
 - View loaded libraries.
+- View running threads.
 - Dump and edit memory.
 - Receive debug messages given by functions such as OutputDebugString or Debug.Print.
+- Break on exceptions and consume them or pass them to the debuggee.
 
 ## How to use
 
@@ -28,17 +30,20 @@ git clone --recurse-submodules https://github.com/Washi1337/Ladybug/
 
 2. Compile the application using your IDE of choice, or by executing `msbuild` in the `src` folder.
 
-3. Run `Ladybug.Console.exe` in `src/Main/Ladybug.Console/bin/<configuration>`.
+3. Run `Ladybug.Console.X86.exe` in `src/Main/Ladybug.Console.X86/bin/<configuration>`.
 
 ```bash
 LadyBug.Console.exe MyApplicationToDebug.exe
 ```
+
+4. Type in `help` for all available commands.
 
 ## Todo
 
 Ladybug is a project that is still in development. Below is a non-exhaustive list that is planned to be added:
 
 - Graphical user interface application.
+- Thread context switching.
 - View contents of stack.
 - Modifying x86 code.
 - 64-bit application debugging.
@@ -55,12 +60,12 @@ The Ladybug project is powered by the following libraries:
 
 Startup:
 
-[![License: LGPL v3](doc/startup.png)](doc/startup.png)
+[![Startup](doc/startup.png)](doc/startup.png)
 
 Disassembly and breakpoints:
 
-[![License: LGPL v3](doc/breakpoints.png)](doc/breakpoints.png)
+[![Breakpoints](doc/breakpoints.png)](doc/breakpoints.png)
 
 Exception handling:
 
-[![License: LGPL v3](doc/exceptions.png)](doc/exceptions.png)
+[![Exception handling](doc/exceptions.png)](doc/exceptions.png)
